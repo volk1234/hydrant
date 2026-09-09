@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: b1-cluster-exported
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type:
+    hydrant.net/rendered: "true"
+    hydrant.net/profile-base: "true"
+    hydrant.net/env: "dev"
+    hydrant.net/region_short: "euw1"
+    hydrant.net/region_name: "eu-west-1"
+    hydrant.net/domain_suffix: "dev.example.com"
+    hydrant.net/k8s_version: "1.35"
+type: Opaque
+stringData:
+  name: b1
+  server: https://b1.example.com
