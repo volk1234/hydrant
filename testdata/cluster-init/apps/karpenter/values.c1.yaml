@@ -1,0 +1,7 @@
+resources:
+  requests:
+    cpu: 2
+tolerations:
+  - key: b
+enabled: yes
+release: 2024-01-01

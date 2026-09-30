@@ -136,6 +136,6 @@ func parseFlexBool(raw any, relPath string) (bool, string) {
 	return false, fmt.Sprintf("%s: externalSecretsEnabled has unrecognized value %v, treated as false", relPath, raw)
 }
 
-func (c Config) SecretsEnabled(relPath string) (bool, string) {
-	return parseFlexBool(c.ExternalSecretsEnabled, relPath)
+func (cf ConfigFile) SecretsEnabled() (bool, string) {
+	return parseFlexBool(cf.Config.ExternalSecretsEnabled, cf.RelPath)
 }

@@ -17,9 +17,6 @@ render:
 	go run ./cmd -repo $(REPO) -env dev -out $(OUT)
 	go run ./cmd -repo $(REPO) -env live -out $(OUT)
 
-check:
-	go run ./cmd -repo $(REPO) -env dev -out $(OUT) -check
-	go run ./cmd -repo $(REPO) -env live -out $(OUT) -check
 
 validate: render
 	$(KUBECONFORM) -strict -summary -schema-location '$(SCHEMA)' $(OUT)
