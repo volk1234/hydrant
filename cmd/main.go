@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-	"strings"
 )
 
 const clustersDir = "generated/clusters"
@@ -24,8 +23,6 @@ func main() {
 	env := flag.String("env", "", "environment name(dev, live, ...)")
 	project := flag.String("project", "default", "ArgoCD AppProject to target")
 	partitionLabel := flag.String("partition-label", "", "cluster label to filter rendering by")
-	strict := flag.Bool("strict", false, "treat warnings as errors")
-	_ = strict
 	flag.Parse()
 
 	if *repo == "" || *out == "" || *project == "" {
@@ -38,6 +35,10 @@ func main() {
 	}
 	if !checkRfc1123(*env) {
 		fmt.Fprintf(os.Stderr, "-env %q: must be a non-empty RFC-1123 name (lowercase letters, digits, hyphens)\n", *env)
+		os.Exit(2)
+	}
+	if err := checkOutDir(*repo, *out); err != nil {
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
 
@@ -53,6 +54,7 @@ func main() {
 	}
 	fmt.Fprintf(os.Stderr, "%d clusters, %d to render\n", len(clusters), len(clustersToRender))
 
+	failed := false
 	configs, cfgErrs, err := loadConfigs(*repo, *env)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -75,14 +77,13 @@ func main() {
 		fmt.Fprintln(os.Stderr, w)
 	}
 	if len(cfgErrs) > 0 {
-		os.Exit(1)
+		failed = true
 	}
-	if len(configs) == 0 {
+	if len(configs) == 0 && len(cfgErrs) == 0 {
 		fmt.Fprintf(os.Stderr, "%s: no 'config-%s.yaml' files found\n", appsDir, *env)
 		os.Exit(1)
 	}
 
-	failed := false
 	var intents []Intent
 	quarantined := make(map[string]bool)
 	for _, cf := range configs {
@@ -109,9 +110,18 @@ func main() {
 		}
 	}
 	intents = filterIntents(intents, clustersToRender)
+	intents, legacy := filterLegacy(intents)
+	for _, e := range checkCollisions(intents) {
+		fmt.Fprintln(os.Stderr, e)
+		failed = true
+	}
 
-	var built []Application
+	product := make(map[string][]byte)
+
 	for _, it := range intents {
+		if quarantined[it.Config.RelPath] {
+			continue
+		}
 
 		values, err := buildValues(*repo, it.Config, it.Target, *env)
 		if err != nil {
@@ -121,16 +131,21 @@ func main() {
 			continue
 		}
 
-		_ = values
-
-		app, err := buildApp(it.Config, it.Target, *env, *project)
+		app, err := buildApp(it.Config, it.Target, *env, *project, values)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			failed = true
 			quarantined[it.Config.RelPath] = true
 			continue
 		}
-		built = append(built, app)
+		appName := it.Config.Config.App.Name
+		cluster := it.Target.Cluster.Name
+		if err := addToProduct(product, outputPath(cluster, appName), app); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			failed = true
+			continue
+		}
+
 		if it.Secrets {
 			sapp, err := buildSecretApp(it.Config, it.Target, *env, *project)
 			if err != nil {
@@ -139,24 +154,27 @@ func main() {
 				quarantined[it.Config.RelPath] = true
 				continue
 			}
-			built = append(built, sapp)
+			if err := addToProduct(product, outputPath(cluster, secretAppNamePrefix+appName), sapp); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				failed = true
+				continue
+			}
 		}
 	}
 
-	for _, a := range built {
-		if strings.HasPrefix(a.Metadata.Name, "test-local-both") {
-			// doc, _ := marshalYAML(a)
-			// os.Stdout.Write(doc)
-
-		}
-		// fmt.Printf("%s goes to %s\n", a.Metadata.Name, a.Spec.Destination.Name)
-	}
-
-	fmt.Fprintf(os.Stderr, "%d configs %d intents %d app quarantined %d apps build\n", len(configs), len(intents), len(quarantined), len(built))
+	fmt.Fprintf(os.Stderr, "%d configs %d intents %d app quarantined  %d legacy_skipped %d apps build\n", len(configs), len(intents), len(quarantined), legacy, len(product))
 	if failed {
 		os.Exit(1)
 	}
 
-	fmt.Fprintln(os.Stderr, "rendered 0 file(s)")
+	if len(product) == 0 && legacy < len(configs) {
+		fmt.Fprintln(os.Stderr, "Output product is empty: Check `-repo`, `-env` and `-partition-label` parameters")
+		os.Exit(1)
+	}
+	if err = writeProduct(*out, *env, product); err != nil {
+		fmt.Fprintln(os.Stderr, "write files on disk: ", err)
+		os.Exit(1)
+	}
+	fmt.Fprintf(os.Stderr, "rendered %d file(s)\n", len(product))
 
 }

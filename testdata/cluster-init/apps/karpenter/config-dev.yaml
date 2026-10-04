@@ -19,6 +19,7 @@ argocd:
     selfheal: true
     prune: true
 externalSecretsEnabled: 'true'
+legacyEnabled: false
 inline_values: |
   settings:
     clusterName: [CLUSTER_NAME]

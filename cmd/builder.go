@@ -2,22 +2,18 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"strconv"
 
 	"go.yaml.in/yaml/v3"
 )
 
 const resourcesFinalizer = "resources-finalizer.argocd.argoproj.io"
-const valuesRepo = "git@github.com:volk1234/turing.git"
 const secretsRepo = "git@github.com:volk1234/turing.git"
 const readinessGateLabel = "elbv2.k8s.aws/pod-readiness-gate-inject"
 const readinessGateValue = "enabled"
 const argoNamespace = "argocd"
 const appAPIVersion = "argoproj.io/v1alpha1"
 const appKind = "Application"
-const valuesRef = "values"
-const ignoreMissingValueFiles = true
 const skipSchemaValidation = true
 const createNamespace = true
 const kubeAppLabel = "app.kubernetes.io/name"
@@ -44,7 +40,6 @@ type Metadata struct {
 type Spec struct {
 	Project           string              `yaml:"project"`
 	Source            *Source             `yaml:"source,omitempty"`
-	Sources           []Source            `yaml:"sources,omitempty"`
 	Destination       AppDestination      `yaml:"destination"`
 	IgnoreDifferences []IgnoreDifferences `yaml:"ignoreDifferences,omitempty"`
 	SyncPolicy        SyncPolicy          `yaml:"syncPolicy"`
@@ -56,15 +51,12 @@ type Source struct {
 	Path           string `yaml:"path,omitempty"`
 	TargetRevision string `yaml:"targetRevision"`
 	Helm           *Helm  `yaml:"helm,omitempty"`
-	Ref            string `yaml:"ref,omitempty"`
 }
 
 type Helm struct {
-	ValueFiles              []string `yaml:"valueFiles"`
-	Values                  string   `yaml:"values,omitempty"`
-	IgnoreMissingValueFiles bool     `yaml:"ignoreMissingValueFiles"`
-	SkipSchemaValidation    bool     `yaml:"skipSchemaValidation"`
-	ReleaseName             string   `yaml:"releaseName"`
+	ReleaseName          string       `yaml:"releaseName"`
+	SkipSchemaValidation bool         `yaml:"skipSchemaValidation"`
+	ValuesObject         ValuesObject `yaml:"valuesObject,omitempty"`
 }
 
 type AppDestination struct {
@@ -123,12 +115,8 @@ func autosyncFrom(a Autosync) *Automated {
 	return &Automated{Enabled: a.Enabled, SelfHeal: a.SelfHeal, Prune: a.Prune}
 }
 
-func buildApp(cfg ConfigFile, t Target, env, project string) (Application, error) {
+func buildApp(cfg ConfigFile, t Target, env, project string, values ValuesObject) (Application, error) {
 	name := cfg.Config.App.Name + "-" + t.Cluster.Name
-	values, err := substituteTokens(cfg.Config.InlineValues, t.Cluster)
-	if err != nil {
-		return Application{}, fmt.Errorf("%s: %w", cfg.RelPath, err)
-	}
 
 	app := Application{
 		APIVersion: appAPIVersion,
@@ -147,28 +135,16 @@ func buildApp(cfg ConfigFile, t Target, env, project string) (Application, error
 		},
 		Spec: Spec{
 			Project: project,
-			Sources: []Source{
-				{
-					RepoURL:        cfg.Config.App.HelmChart.RepoURL,
-					Chart:          cfg.Config.App.HelmChart.Name,
-					Path:           cfg.Config.App.HelmChart.Path,
-					TargetRevision: firstNonEmpty(t.Override.TargetRevision, cfg.Config.App.HelmChart.Default.TargetRevision),
-					Helm: &Helm{
-						ValueFiles: []string{
-							"$values/" + cfg.Dir + "/values.yaml",
-							"$values/" + cfg.Dir + "/values." + env + ".yaml",
-							"$values/" + cfg.Dir + "/values." + t.Cluster.Name + ".yaml",
-						},
-						Values:                  values,
-						IgnoreMissingValueFiles: ignoreMissingValueFiles,
-						SkipSchemaValidation:    skipSchemaValidation,
-						ReleaseName:             firstNonEmpty(cfg.Config.App.HelmChart.ReleaseName, name),
-					},
-				},
-				{
-					RepoURL:        valuesRepo,
-					TargetRevision: firstNonEmpty(t.Override.ValuesRevision, cfg.Config.App.HelmChart.Default.ValuesRevision),
-					Ref:            valuesRef,
+			Source: &Source{
+
+				RepoURL:        cfg.Config.App.HelmChart.RepoURL,
+				Chart:          cfg.Config.App.HelmChart.Name,
+				Path:           cfg.Config.App.HelmChart.Path,
+				TargetRevision: firstNonEmpty(t.Override.TargetRevision, cfg.Config.App.HelmChart.Default.TargetRevision),
+				Helm: &Helm{
+					ReleaseName:          firstNonEmpty(cfg.Config.App.HelmChart.ReleaseName, name),
+					SkipSchemaValidation: skipSchemaValidation,
+					ValuesObject:         values,
 				},
 			},
 			Destination: AppDestination{

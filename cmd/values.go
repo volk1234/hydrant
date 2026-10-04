@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"go.yaml.in/yaml/v3"
 )
@@ -21,6 +22,13 @@ type pair struct {
 
 type ValuesObject struct {
 	node *yaml.Node
+}
+
+var yaml11Bools = map[string]bool{
+	"y": true, "Y": true, "yes": true, "Yes": true, "YES": true,
+	"n": true, "N": true, "no": true, "No": true, "NO": true,
+	"on": true, "On": true, "ON": true,
+	"off": true, "Off": true, "OFF": true,
 }
 
 func (v ValuesObject) IsZero() bool {
@@ -80,6 +88,38 @@ func mergeValues(lower, upper *yaml.Node) *yaml.Node {
 	}
 	return result
 }
+func checkValuesNode(n *yaml.Node, relPath, path string) error {
+	switch n.Kind {
+	case yaml.MappingNode:
+		seen := make(map[string]bool)
+		for i := 0; i < len(n.Content); i += 2 {
+			key := n.Content[i]
+			val := n.Content[i+1]
+
+			if key.Tag != "!!str" {
+				return fmt.Errorf("%s: key %q at %s is not a string", relPath, key.Value, path+"/")
+			}
+			if key.Style == 0 && yaml11Bools[key.Value] {
+				return fmt.Errorf("%s: key %q at %s is read by Helm as a boolean; quote it", relPath, key.Value, path+"/")
+			}
+			if seen[key.Value] {
+				return fmt.Errorf("%s: duplicate key %q at %s", relPath, key.Value, path+"/")
+			}
+			seen[key.Value] = true
+
+			if err := checkValuesNode(val, relPath, path+"/"+key.Value); err != nil {
+				return err
+			}
+		}
+	case yaml.SequenceNode:
+		for i, item := range n.Content {
+			if err := checkValuesNode(item, relPath, fmt.Sprintf("%s[%d]", path, i)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
 
 func parseValues(data []byte, relPath string) (*yaml.Node, error) {
 	var doc yaml.Node
@@ -93,6 +133,9 @@ func parseValues(data []byte, relPath string) (*yaml.Node, error) {
 
 	if root.Kind != yaml.MappingNode {
 		return nil, fmt.Errorf("%s: root of a values file must be a mapping", relPath)
+	}
+	if err := checkValuesNode(root, relPath, ""); err != nil {
+		return nil, err
 	}
 
 	return root, nil
@@ -111,6 +154,7 @@ func normalizeValues(n *yaml.Node) {
 	if n == nil {
 		return
 	}
+	n.HeadComment, n.LineComment, n.FootComment = "", "", ""
 	switch n.Kind {
 	case yaml.MappingNode:
 		var pairs []pair
@@ -122,12 +166,25 @@ func normalizeValues(n *yaml.Node) {
 		})
 		n.Content = n.Content[:0]
 		for _, p := range pairs {
+			normalizeValues(p.key)
 			normalizeValues(p.val)
 			n.Content = append(n.Content, p.key, p.val)
+		}
+		n.Style = 0
+		if len(n.Content) == 0 {
+			n.Style = yaml.FlowStyle
 		}
 	case yaml.SequenceNode:
 		for _, item := range n.Content {
 			normalizeValues(item)
+		}
+		n.Style = 0
+		if len(n.Content) == 0 {
+			n.Style = yaml.FlowStyle
+		}
+	case yaml.ScalarNode:
+		if n.Tag == "!!str" && strings.Contains(n.Value, "\n") {
+			n.Style = yaml.LiteralStyle
 		}
 	}
 }

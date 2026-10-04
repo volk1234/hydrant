@@ -69,3 +69,16 @@ func filterIntents(intents []Intent, render map[string]Cluster) []Intent {
 	}
 	return result
 }
+
+func filterLegacy(intents []Intent) ([]Intent, int) {
+	var result []Intent
+	skipped := make(map[string]bool)
+	for _, it := range intents {
+		if it.Config.Config.LegacyEnabled == "true" {
+			skipped[it.Config.RelPath] = true
+			continue
+		}
+		result = append(result, it)
+	}
+	return result, len(skipped)
+}

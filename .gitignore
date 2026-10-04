@@ -30,3 +30,8 @@ Makefile.local
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# local render output: may contain real configs, never commit
+/tmp/
+/tmp2/
+/rendered/
