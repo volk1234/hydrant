@@ -1,12 +1,8 @@
 #!/usr/bin/env bash
 # Gate A9: valuesObject in the product must equal what Helm builds from
 #   -f values.yaml -f values.{env}.yaml -f values.{cluster}.yaml -f <inline>
-# Tokens in the inline are substituted here independently (yq + sed over the
-# cluster secret), not by the renderer, so the gate never checks the renderer
-# against itself.
-#
 # Usage: scripts/gate-a9.sh <repo> <env> <out> [app-dir...]
-# Env:   LABEL_PREFIX  label/annotation prefix for tokens (default: hydrant.net/)
+
 set -euo pipefail
 
 repo=$1; env=$2; out=$3; shift 3
