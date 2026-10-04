@@ -70,15 +70,16 @@ func checkOutDir(repo, out string) error {
 	if err != nil {
 		return fmt.Errorf("-out: %w", err)
 	}
+	if within(repo, out) {
+		return fmt.Errorf("-out %s is the checkout itself or above it", out)
+	}
 	for _, dir := range []string{appsDir, clustersDir} {
 		d := filepath.Join(repo, dir)
 		if within(out, d) || within(d, out) {
 			return fmt.Errorf("-out %s overlaps input directory %s", out, d)
 		}
 	}
-	if within(repo, out) {
-		return fmt.Errorf("-out %s is the checkout itself or above it", out)
-	}
+
 	return nil
 }
 
