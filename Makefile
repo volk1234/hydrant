@@ -7,7 +7,7 @@ OUT  ?= /tmp/rendered
 KUBECONFORM = go run github.com/yannh/kubeconform/cmd/kubeconform@v0.7.0
 SCHEMA = testdata/schemas/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json
 
-.PHONY: test render check validate
+.PHONY: test render check validate determinism gate
 
 test:
 	go vet ./cmd
@@ -20,3 +20,15 @@ render:
 
 validate: render
 	$(KUBECONFORM) -strict -summary -schema-location '$(SCHEMA)' $(OUT)
+
+determinism:
+	rm -rf $(OUT)-a $(OUT)-b
+	go run ./cmd -repo $(REPO) -env dev -out $(OUT)-a
+	go run ./cmd -repo $(REPO) -env dev -out $(OUT)-b
+	diff -r $(OUT)-a $(OUT)-b
+	@echo "determinism: OK"
+
+gate:
+	rm -rf $(OUT)
+	go run ./cmd -repo $(REPO) -env dev -out $(OUT)
+	scripts/gate-a9.sh $(REPO) dev $(OUT)
