@@ -13,7 +13,7 @@ hydrant -repo <turing checkout> -env dev -out rendered/dev   # render
 hydrant -repo . -env live -check                                  # drift gate (CI)
 ```
 
-Flags: `-partition-label` (emit only clusters labeled `hydrant.net/rendered: "true"`),
+Flags: `-partition-label` (emit only clusters labeled `hydrant.sh/rendered: "true"`),
 `-cluster-init-autosync` `-external-secrets-autosync` (sync-policy gates).
 
 ## Properties

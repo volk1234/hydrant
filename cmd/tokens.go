@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-const tokenPrefix = "hydrant.net/"
+const tokenPrefix = "hydrant.sh/"
 
 var tokenRe = regexp.MustCompile(`\[[A-Z0-9_]+\]`)
 

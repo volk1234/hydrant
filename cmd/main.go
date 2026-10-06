@@ -9,7 +9,7 @@ import (
 
 const clustersDir = "generated/clusters"
 const appsDir = "cluster-init/apps"
-const profileLabel = "hydrant.net/profile-"
+const profileLabel = "hydrant.sh/profile-"
 
 var rfc1123 = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`)
 
@@ -41,6 +41,12 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
+	settings, err := loadSettings(*repo)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	fmt.Fprintf(os.Stderr, "%+v\n", settings)
 
 	clusters, err := loadClusters(*repo, *env)
 	if err != nil {

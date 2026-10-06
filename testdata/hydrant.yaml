@@ -1,0 +1,10 @@
+labelPrefix: hydrant.sh/
+secretsRepoURL: git@github.com:volk1234/turing.git
+apps: cluster-init/apps
+clusters: generated/clusters
+argocd:
+  namespace: argocd
+  syncPolicy:
+    managedNamespaceMetadata:
+      labels:
+        elbv2.k8s.aws/pod-readiness-gate-inject: enabled
