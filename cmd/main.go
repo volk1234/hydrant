@@ -9,7 +9,6 @@ import (
 
 const clustersDir = "generated/clusters"
 const appsDir = "cluster-init/apps"
-const profileLabel = "hydrant.sh/profile-"
 
 var rfc1123 = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`)
 
@@ -93,7 +92,7 @@ func main() {
 	var intents []Intent
 	quarantined := make(map[string]bool)
 	for _, cf := range configs {
-		targets, errs, warns := resolveTargets(cf, clusters)
+		targets, errs, warns := resolveTargets(cf, clusters, settings.ProfileLabel())
 		if len(errs) > 0 {
 			failed = true
 			quarantined[cf.RelPath] = true
@@ -129,7 +128,7 @@ func main() {
 			continue
 		}
 
-		values, err := buildValues(*repo, it.Config, it.Target, *env)
+		values, err := buildValues(*repo, it.Config, it.Target, *env, settings.LabelPrefix)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			failed = true
@@ -174,7 +173,7 @@ func main() {
 	}
 
 	if len(product) == 0 && legacy < len(configs) {
-		fmt.Fprintln(os.Stderr, "Output product is empty: Check `-repo`, `-env` and `-partition-label` parameters")
+		fmt.Fprintln(os.Stderr, "product is empty: check -repo, -env and -partition-label")
 		os.Exit(1)
 	}
 	if err = writeProduct(*out, *env, product); err != nil {

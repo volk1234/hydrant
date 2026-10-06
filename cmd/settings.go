@@ -30,6 +30,10 @@ type SettingsSyncPolicy struct {
 	} `yaml:"managedNamespaceMetadata"`
 }
 
+func (s Settings) ProfileLabel() string {
+	return s.LabelPrefix + "profile-"
+}
+
 func loadSettings(repo string) (Settings, error) {
 	path := filepath.Join(repo, settingsFileName)
 

@@ -26,3 +26,4 @@ inline_values: |
     interruptionQueue: karpenter-[CLUSTER_NAME]
     aws:
       defaultInstanceProfile: eks_worker-[CLUSTER_NAME]
+    region: "[REGION_SHORT]"
