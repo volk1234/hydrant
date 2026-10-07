@@ -1,20 +1,18 @@
 # hydrant
 
-Hydrates dry [bcda](https://github.com/volk1234/platform-core/blob/master/README.md) configs into rendered Argo CD `Application` manifests — the [rendered manifests pattern](https://akuity.io/blog/the-rendered-manifests-pattern), replacing runtime ApplicationSet evaluation
+Hydrates dry ArgoCD ApplicationSet configs into rendered Argo CD `Application` manifests — the [rendered manifests pattern](https://akuity.io/blog/the-rendered-manifests-pattern), replacing runtime ApplicationSet evaluation.
+Tool make the topology using cluster secrets - define what goes where with what values.
 
-**Input** (an `bcda` checkout): `https://github.com/volk1234/turing/tree/master/bcda/apps/**/config-{env}.yaml`
-+ `https://github.com/volk1234/turing/tree/master/generated/clusters/{env}/*.yaml`.
+**Input**: `testdata/cluster-init/apps/**/config-{env}.yaml`
++ `testdata/generated/clusters/{env}/*.yaml`.
 **Output**: one `Application YAML` per app × cluster pair — plain pointer objects the hub applies as-is.
 
 ## Usage
 
 ```sh
-hydrant -repo <turing checkout> -env dev -out rendered/dev   # render
-hydrant -repo . -env live -check                                  # drift gate (CI)
+hydrant -repo <checkout> -env dev -out rendered/dev   # render
+hydrant -repo . -env live -out rendered/live -partition-label hydrant.sh/rendered: "true" # scoped render
 ```
-
-Flags: `-partition-label` (emit only clusters labeled `hydrant.net/rendered: "true"`),
-`-cluster-init-autosync` `-external-secrets-autosync` (sync-policy gates).
 
 ## Properties
 
