@@ -61,7 +61,7 @@ func within(a, b string) bool {
 	return a == b || strings.HasPrefix(a, b+string(filepath.Separator))
 }
 
-func checkOutDir(repo, out string) error {
+func checkOutDir(repo, out, appsDir, clustersDir string) error {
 	repo, err := canonical(repo)
 	if err != nil {
 		return fmt.Errorf("-repo: %w", err)

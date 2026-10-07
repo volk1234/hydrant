@@ -108,7 +108,6 @@ func validateConfig(cfg Config, relPath string) []error {
 		{cfg.App.HelmChart.Default.TargetRevision, "app.helmchart.default.targetRevision"},
 		{cfg.App.HelmChart.Default.ValuesRevision, "app.helmchart.default.valuesRevision"},
 		{cfg.App.Destination.Namespace, "app.destination.namespace"},
-		{cfg.ArgoCD.Namespace, "argocd.namespace"},
 	}
 	for _, r := range required {
 		if r.val == "" {
@@ -138,4 +137,11 @@ func parseFlexBool(raw any, relPath string) (bool, string) {
 
 func (cf ConfigFile) SecretsEnabled() (bool, string) {
 	return parseFlexBool(cf.Config.ExternalSecretsEnabled, cf.RelPath)
+}
+
+func argoNamespaceFor(cfg ConfigFile, s Settings) (string, error) {
+	if ns := firstNonEmpty(cfg.Config.ArgoCD.Namespace, s.ArgoCD.Namespace); ns != "" {
+		return ns, nil
+	}
+	return "", fmt.Errorf("%s: argocd.namespace is required", cfg.RelPath)
 }
