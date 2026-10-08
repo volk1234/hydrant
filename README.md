@@ -1,6 +1,6 @@
 # hydrant
 
-Hydrates is a CLI tool that statically renders ArgoCD ApplicationSets 
+Hydrant is a CLI tool that statically renders ArgoCD ApplicationSets 
 into Application manifests. By shifting from in-memory runtime evaluation to
 the "rendered manifests" pattern, it enforces pure GitOps—drastically reducing
 the blast radius by letting you review exact diffs before deployment. 
