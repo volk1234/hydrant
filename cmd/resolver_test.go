@@ -209,3 +209,26 @@ func TestFilterLegacy(t *testing.T) {
 		}
 	}
 }
+
+func TestFilterIntents(t *testing.T) {
+	intents := []Intent{
+		{Target: Target{Cluster: Cluster{Name: "c1"}}},
+		{Target: Target{Cluster: Cluster{Name: "c2"}}},
+		{Target: Target{Cluster: Cluster{Name: "c3"}}},
+	}
+	render := map[string]Cluster{
+		"c1": {Name: "c1"},
+		"c3": {Name: "c3"},
+	}
+
+	result := filterIntents(intents, render)
+	if len(result) != 2 {
+		t.Fatalf("filterIntents count = %d, want 2", len(result))
+	}
+	for _, it := range result {
+		if it.Target.Cluster.Name == "c2" {
+			t.Errorf("cluster c2 should have been filtered out")
+		}
+	}
+}
+
