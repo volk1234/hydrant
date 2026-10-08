@@ -1,7 +1,12 @@
 # hydrant
 
-Hydrates dry ArgoCD ApplicationSet configs into rendered Argo CD `Application` manifests — the [rendered manifests pattern](https://akuity.io/blog/the-rendered-manifests-pattern), replacing runtime ApplicationSet evaluation.
-Tool make the topology using cluster secrets - define what goes where with what values.
+Hydrates is a CLI tool that statically renders ArgoCD ApplicationSets 
+into Application manifests. By shifting from in-memory runtime evaluation to
+the "rendered manifests" pattern, it enforces pure GitOps—drastically reducing
+the blast radius by letting you review exact diffs before deployment. 
+Deployment topology is driven by Argo CD cluster secrets, uniquely leveraging their labels
+ not only for cluster targeting but as a dynamic source of ⁠the Chart values⁠.
+
 
 **Input**: `testdata/cluster-init/apps/**/config-{env}.yaml`
 + `testdata/generated/clusters/{env}/*.yaml`.
