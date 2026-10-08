@@ -8,9 +8,13 @@ Deployment topology is driven by Argo CD cluster secrets, uniquely leveraging th
  not only for cluster targeting but as a dynamic source of ⁠the Chart values⁠.
 
 
-**Input**: `testdata/cluster-init/apps/**/config-{env}.yaml`
+**Input**: 
++ `testdata/cluster-init/apps/**/config-{env}.yaml`
 + `testdata/generated/clusters/{env}/*.yaml`.
-**Output**: one `Application YAML` per app × cluster pair — plain pointer objects the hub applies as-is.
+
+
+**Output**: 
++ one `Application YAML` per app × cluster pair — plain pointer objects the hub applies as-is.
 
 ## Usage
 
