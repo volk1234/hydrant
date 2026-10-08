@@ -114,6 +114,9 @@ func validateConfig(cfg Config, relPath string) []error {
 			errs = append(errs, fmt.Errorf("%s: %s is required", relPath, r.key))
 		}
 	}
+	if ns := cfg.ArgoCD.Namespace; ns != "" && (len(ns) > 63 || !checkRfc1123(ns)) {
+		errs = append(errs, fmt.Errorf("%s: argocd.namespace %q: not a valid namespace name", relPath, ns))
+	}
 
 	return errs
 }
@@ -143,5 +146,5 @@ func argoNamespaceFor(cfg ConfigFile, s Settings) (string, error) {
 	if ns := firstNonEmpty(cfg.Config.ArgoCD.Namespace, s.ArgoCD.Namespace); ns != "" {
 		return ns, nil
 	}
-	return "", fmt.Errorf("%s: argocd.namespace is required", cfg.RelPath)
+	return "", fmt.Errorf("%s: argocd.namespace is not set in the config or in hydrant.yaml", cfg.RelPath)
 }

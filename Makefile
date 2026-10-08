@@ -36,5 +36,5 @@ gate:
 compare:
 	rm -rf tmp/
 	go run ./cmd -repo testdata -env dev -out tmp/
-	diff -r etalon/ tmp/
+	diff -r testdata-rendered/ tmp/
 	@echo "no diff!!!"

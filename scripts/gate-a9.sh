@@ -1,18 +1,29 @@
 #!/usr/bin/env bash
 # Gate A9: valuesObject in the product must equal what Helm builds from
 #   -f values.yaml -f values.{env}.yaml -f values.{cluster}.yaml -f <inline>
+# Tokens in the inline are substituted here independently (yq + sed over the
+# cluster secret), not by the renderer, so the gate never checks the renderer
+# against itself. labelPrefix, apps and clusters come from <repo>/hydrant.yaml,
+# the same file the renderer reads; there are no defaults.
 # Usage: scripts/gate-a9.sh <repo> <env> <out> [app-dir...]
 
 set -euo pipefail
 
 repo=$1; env=$2; out=$3; shift 3
-prefix=${LABEL_PREFIX:-hydrant.sh/}
+settings="$repo/hydrant.yaml"
+[ -f "$settings" ] || { echo "gate: $settings not found" >&2; exit 1; }
+prefix=$(yq -r '.labelPrefix // ""' "$settings")
+appsdir=$(yq -r '.apps // ""' "$settings")
+clustersdir=$(yq -r '.clusters // ""' "$settings")
+for v in prefix appsdir clustersdir; do
+  [ -n "${!v}" ] || { echo "gate: $v is empty in $settings" >&2; exit 1; }
+done
 dump=$(cd "$(dirname "$0")/.." && pwd)/testdata/dumpchart
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 
 apps=("$@")
 if [ ${#apps[@]} -eq 0 ]; then
-  mapfile -t apps < <(cd "$repo" && find cluster-init/apps -name "config-$env.yaml" -printf '%h\n' | sort)
+  mapfile -t apps < <(cd "$repo" && find "$appsdir" -name "config-$env.yaml" -printf '%h\n' | sort)
 fi
 
 fail=0; checked=0
@@ -30,7 +41,7 @@ for dir in "${apps[@]}"; do
 
     inline=$(yq '.inline_values // ""' "$cfg")
     if [ -n "$inline" ]; then
-      secret=$(grep -l "^  name: $cluster\$" "$repo/generated/clusters/$env"/*.yaml | head -1)
+      secret=$(grep -l "^  name: $cluster\$" "$repo/$clustersdir/$env"/*.yaml | head -1)
       sedexpr="s/\\[CLUSTER_NAME\\]/$cluster/g;"
       while IFS=$'\t' read -r key val; do
         tok=$(echo "${key#"$prefix"}" | tr '[:lower:]' '[:upper:]')

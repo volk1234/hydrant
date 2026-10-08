@@ -34,12 +34,13 @@ func main() {
 		os.Exit(2)
 	}
 
-	settings, err := loadSettings(*repo)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+	settings, errs := loadSettings(*repo)
+	if len(errs) > 0 {
+		for _, e := range errs {
+			fmt.Fprintln(os.Stderr, e)
+		}
 		os.Exit(1)
 	}
-	fmt.Fprintf(os.Stderr, "%+v\n", settings)
 
 	if err := checkOutDir(*repo, *out, settings.Apps, settings.Clusters); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -48,6 +49,10 @@ func main() {
 
 	clusters, err := loadClusters(*repo, *env, settings.Clusters)
 	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	if err := checkPrefixInClusters(settings.LabelPrefix, clusters); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
@@ -102,8 +107,6 @@ func main() {
 		for _, w := range warns {
 			fmt.Fprintln(os.Stderr, w)
 		}
-		// fmt.Fprintf(os.Stderr, "%s: %d targets\n", cf.Config.App.Name, len(targets))
-
 		secrets, warn := cf.SecretsEnabled()
 		if warn != "" {
 			fmt.Fprintln(os.Stderr, warn)
