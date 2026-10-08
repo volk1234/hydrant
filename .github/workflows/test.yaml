@@ -32,3 +32,9 @@ jobs:
 
       - name: Run tests
         run: make test
+        
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Gate A9 on testdata
+        run: make gate REPO=testdata
