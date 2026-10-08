@@ -189,7 +189,7 @@ func normalizeValues(n *yaml.Node) {
 	}
 }
 
-func buildValues(repo string, cfg ConfigFile, t Target, env string) (ValuesObject, error) {
+func buildValues(repo string, cfg ConfigFile, t Target, env string, prefix string) (ValuesObject, error) {
 
 	// read 3 values files
 	valuesFiles, err := readValuesLayers(repo, cfg.Dir, env, t.Cluster.Name)
@@ -199,7 +199,7 @@ func buildValues(repo string, cfg ConfigFile, t Target, env string) (ValuesObjec
 
 	// append inline tokens
 	if cfg.Config.InlineValues != "" {
-		text, err := substituteTokens(cfg.Config.InlineValues, t.Cluster)
+		text, err := substituteTokens(cfg.Config.InlineValues, t.Cluster, prefix)
 		if err != nil {
 			return ValuesObject{}, fmt.Errorf("%s: %w", cfg.RelPath, err)
 		}

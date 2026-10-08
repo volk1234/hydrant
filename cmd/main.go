@@ -7,10 +7,6 @@ import (
 	"regexp"
 )
 
-const clustersDir = "generated/clusters"
-const appsDir = "cluster-init/apps"
-const profileLabel = "hydrant.net/profile-"
-
 var rfc1123 = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`)
 
 func checkRfc1123(s string) bool {
@@ -37,13 +33,26 @@ func main() {
 		fmt.Fprintf(os.Stderr, "-env %q: must be a non-empty RFC-1123 name (lowercase letters, digits, hyphens)\n", *env)
 		os.Exit(2)
 	}
-	if err := checkOutDir(*repo, *out); err != nil {
+
+	settings, errs := loadSettings(*repo)
+	if len(errs) > 0 {
+		for _, e := range errs {
+			fmt.Fprintln(os.Stderr, e)
+		}
+		os.Exit(1)
+	}
+
+	if err := checkOutDir(*repo, *out, settings.Apps, settings.Clusters); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
 
-	clusters, err := loadClusters(*repo, *env)
+	clusters, err := loadClusters(*repo, *env, settings.Clusters)
 	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	if err := checkPrefixInClusters(settings.LabelPrefix, clusters); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
@@ -55,7 +64,7 @@ func main() {
 	fmt.Fprintf(os.Stderr, "%d clusters, %d to render\n", len(clusters), len(clustersToRender))
 
 	failed := false
-	configs, cfgErrs, err := loadConfigs(*repo, *env)
+	configs, cfgErrs, err := loadConfigs(*repo, *env, settings.Apps)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -63,12 +72,12 @@ func main() {
 	for _, e := range cfgErrs {
 		fmt.Fprintln(os.Stderr, e)
 	}
-	envs, err := listEnvs(*repo)
+	envs, err := listEnvs(*repo, settings.Clusters)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	stray, err := findStrayConfigs(*repo, envs)
+	stray, err := findStrayConfigs(*repo, envs, settings.Apps)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -80,14 +89,14 @@ func main() {
 		failed = true
 	}
 	if len(configs) == 0 && len(cfgErrs) == 0 {
-		fmt.Fprintf(os.Stderr, "%s: no 'config-%s.yaml' files found\n", appsDir, *env)
+		fmt.Fprintf(os.Stderr, "%s: no 'config-%s.yaml' files found\n", settings.Apps, *env)
 		os.Exit(1)
 	}
 
 	var intents []Intent
 	quarantined := make(map[string]bool)
 	for _, cf := range configs {
-		targets, errs, warns := resolveTargets(cf, clusters)
+		targets, errs, warns := resolveTargets(cf, clusters, settings.ProfileLabel())
 		if len(errs) > 0 {
 			failed = true
 			quarantined[cf.RelPath] = true
@@ -98,8 +107,6 @@ func main() {
 		for _, w := range warns {
 			fmt.Fprintln(os.Stderr, w)
 		}
-		// fmt.Fprintf(os.Stderr, "%s: %d targets\n", cf.Config.App.Name, len(targets))
-
 		secrets, warn := cf.SecretsEnabled()
 		if warn != "" {
 			fmt.Fprintln(os.Stderr, warn)
@@ -122,8 +129,14 @@ func main() {
 		if quarantined[it.Config.RelPath] {
 			continue
 		}
-
-		values, err := buildValues(*repo, it.Config, it.Target, *env)
+		ns, err := argoNamespaceFor(it.Config, settings)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			failed = true
+			quarantined[it.Config.RelPath] = true
+			continue
+		}
+		values, err := buildValues(*repo, it.Config, it.Target, *env, settings.LabelPrefix)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			failed = true
@@ -131,7 +144,7 @@ func main() {
 			continue
 		}
 
-		app, err := buildApp(it.Config, it.Target, *env, *project, values)
+		app, err := buildApp(it.Config, it.Target, *env, *project, values, settings.ArgoCD.SyncPolicy.ManagedNamespaceMetadata.Labels, ns)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			failed = true
@@ -147,7 +160,7 @@ func main() {
 		}
 
 		if it.Secrets {
-			sapp, err := buildSecretApp(it.Config, it.Target, *env, *project)
+			sapp, err := buildSecretApp(it.Config, it.Target, *env, *project, settings.SecretsRepoURL, settings.Apps, ns)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				failed = true
@@ -168,7 +181,7 @@ func main() {
 	}
 
 	if len(product) == 0 && legacy < len(configs) {
-		fmt.Fprintln(os.Stderr, "Output product is empty: Check `-repo`, `-env` and `-partition-label` parameters")
+		fmt.Fprintln(os.Stderr, "product is empty: check -repo, -env and -partition-label")
 		os.Exit(1)
 	}
 	if err = writeProduct(*out, *env, product); err != nil {

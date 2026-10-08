@@ -8,35 +8,33 @@ import (
 	"strings"
 )
 
-const tokenPrefix = "hydrant.net/"
-
 var tokenRe = regexp.MustCompile(`\[[A-Z0-9_]+\]`)
 
-func tokenName(key string) string {
-	t := strings.ToUpper(strings.TrimPrefix(key, tokenPrefix))
+func tokenName(key string, prefix string) string {
+	t := strings.ToUpper(strings.TrimPrefix(key, prefix))
 	t = "[" + t + "]"
 	return t
 }
 
-func clusterTokens(c Cluster) (map[string]string, error) {
+func clusterTokens(c Cluster, prefix string) (map[string]string, error) {
 	tokens := make(map[string]string)
 
 	tokens["[CLUSTER_NAME]"] = c.Name
 	for k, v := range c.Labels {
-		if !strings.HasPrefix(k, tokenPrefix) {
+		if !strings.HasPrefix(k, prefix) {
 			continue
 		}
-		token := tokenName(k)
+		token := tokenName(k, prefix)
 		if _, exist := tokens[token]; exist {
 			return nil, fmt.Errorf(" cluster %q: label %s: token %s is already defined", c.Name, k, token)
 		}
 		tokens[token] = v
 	}
 	for k, v := range c.Annotations {
-		if !strings.HasPrefix(k, tokenPrefix) {
+		if !strings.HasPrefix(k, prefix) {
 			continue
 		}
-		token := tokenName(k)
+		token := tokenName(k, prefix)
 		if _, exist := tokens[token]; exist {
 			return nil, fmt.Errorf(" cluster %q: annotation %s: token %s is already defined", c.Name, k, token)
 		}
@@ -46,8 +44,8 @@ func clusterTokens(c Cluster) (map[string]string, error) {
 	return tokens, nil
 }
 
-func substituteTokens(text string, c Cluster) (string, error) {
-	tokens, err := clusterTokens(c)
+func substituteTokens(text string, c Cluster, prefix string) (string, error) {
+	tokens, err := clusterTokens(c, prefix)
 	if err != nil {
 		return "", err
 	}

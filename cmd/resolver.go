@@ -16,7 +16,7 @@ type Intent struct {
 	Secrets bool
 }
 
-func resolveTargets(cfg ConfigFile, clusters map[string]Cluster) ([]Target, []error, []string) {
+func resolveTargets(cfg ConfigFile, clusters map[string]Cluster, profileLabel string) ([]Target, []error, []string) {
 	var errs []error
 	var warns []string
 	var names []string

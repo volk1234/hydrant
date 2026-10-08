@@ -5,13 +5,13 @@ metadata:
   namespace: argocd
   labels:
     argocd.argoproj.io/secret-type: cluster
-    hydrant.net/rendered: "true"
-    hydrant.net/profile-base: "true"
-    hydrant.net/env: "dev"
-    hydrant.net/region_short: "euw1"
-    hydrant.net/region_name: "eu-west-1"
-    hydrant.net/domain_suffix: "dev.example.com"
-    hydrant.net/k8s_version: "1.35"
+    hydrant.sh/rendered: "true"
+    hydrant.sh/profile-base: "true"
+    hydrant.sh/env: "dev"
+    hydrant.sh/region_short: "euw1"
+    hydrant.sh/region_name: "eu-west-1"
+    hydrant.sh/domain_suffix: "dev.example.com"
+    hydrant.sh/k8s_version: "1.35"
 type: Opaque
 stringData:
   name: "--f"

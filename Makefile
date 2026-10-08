@@ -32,3 +32,9 @@ gate:
 	rm -rf $(OUT)
 	go run ./cmd -repo $(REPO) -env dev -out $(OUT)
 	scripts/gate-a9.sh $(REPO) dev $(OUT)
+
+compare:
+	rm -rf tmp/
+	go run ./cmd -repo testdata -env dev -out tmp/
+	diff -r testdata-rendered/ tmp/
+	@echo "no diff!!!"

@@ -28,7 +28,7 @@ type Cluster struct {
 	Annotations map[string]string
 }
 
-func listEnvs(repo string) ([]string, error) {
+func listEnvs(repo, clustersDir string) ([]string, error) {
 	entries, err := os.ReadDir(filepath.Join(repo, clustersDir))
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", clustersDir, err)
@@ -42,11 +42,11 @@ func listEnvs(repo string) ([]string, error) {
 	return envs, nil
 }
 
-func loadClusters(repo, env string) (map[string]Cluster, error) {
+func loadClusters(repo, env, clustersDir string) (map[string]Cluster, error) {
 	dir := filepath.Join(repo, clustersDir, env)
 	if _, err := os.Stat(dir); errors.Is(err, os.ErrNotExist) {
 
-		envs, lerr := listEnvs(repo)
+		envs, lerr := listEnvs(repo, clustersDir)
 		if lerr != nil {
 			return nil, lerr
 		}

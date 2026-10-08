@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-func loadConfigs(repo, env string) ([]ConfigFile, []error, error) {
+func loadConfigs(repo, env, appsDir string) ([]ConfigFile, []error, error) {
 	root := filepath.Join(repo, appsDir)
 	file := "config-" + env + ".yaml"
 	var configs []ConfigFile
@@ -62,7 +62,7 @@ func loadOneConfig(repo, fullPath string) (ConfigFile, []error) {
 	return ConfigFile{Config: cfg, RelPath: relPath, Dir: dir}, nil
 }
 
-func findStrayConfigs(repo string, envs []string) ([]string, error) {
+func findStrayConfigs(repo string, envs []string, appsDir string) ([]string, error) {
 	root := filepath.Join(repo, appsDir)
 	var stray []string
 

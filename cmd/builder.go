@@ -8,10 +8,6 @@ import (
 )
 
 const resourcesFinalizer = "resources-finalizer.argocd.argoproj.io"
-const secretsRepo = "git@github.com:volk1234/turing.git"
-const readinessGateLabel = "elbv2.k8s.aws/pod-readiness-gate-inject"
-const readinessGateValue = "enabled"
-const argoNamespace = "argocd"
 const appAPIVersion = "argoproj.io/v1alpha1"
 const appKind = "Application"
 const skipSchemaValidation = true
@@ -115,7 +111,14 @@ func autosyncFrom(a Autosync) *Automated {
 	return &Automated{Enabled: a.Enabled, SelfHeal: a.SelfHeal, Prune: a.Prune}
 }
 
-func buildApp(cfg ConfigFile, t Target, env, project string, values ValuesObject) (Application, error) {
+func namespaceMetadataFrom(labels map[string]string) *ManagedNamespaceMetadata {
+	if len(labels) == 0 {
+		return nil
+	}
+	return &ManagedNamespaceMetadata{Labels: labels}
+}
+
+func buildApp(cfg ConfigFile, t Target, env, project string, values ValuesObject, nsLabels map[string]string, ns string) (Application, error) {
 	name := cfg.Config.App.Name + "-" + t.Cluster.Name
 
 	app := Application{
@@ -123,7 +126,7 @@ func buildApp(cfg ConfigFile, t Target, env, project string, values ValuesObject
 		Kind:       appKind,
 		Metadata: Metadata{
 			Name:      name,
-			Namespace: cfg.Config.ArgoCD.Namespace,
+			Namespace: ns,
 			Annotations: map[string]string{
 				"argocd.argoproj.io/sync-wave": strconv.Itoa(cfg.Config.ArgoCD.SyncWave),
 			},
@@ -152,9 +155,7 @@ func buildApp(cfg ConfigFile, t Target, env, project string, values ValuesObject
 				Namespace: firstNonEmpty(t.Override.Namespace, cfg.Config.App.Destination.Namespace),
 			},
 			SyncPolicy: SyncPolicy{
-				ManagedNamespaceMetadata: &ManagedNamespaceMetadata{
-					Labels: map[string]string{readinessGateLabel: readinessGateValue},
-				},
+				ManagedNamespaceMetadata: namespaceMetadataFrom(nsLabels),
 				SyncOptions: []string{
 					"ServerSideApply=" + strconv.FormatBool(cfg.Config.ArgoCD.ServerSideApply),
 					"CreateNamespace=" + strconv.FormatBool(createNamespace),
@@ -178,7 +179,7 @@ func buildApp(cfg ConfigFile, t Target, env, project string, values ValuesObject
 	return app, nil
 }
 
-func buildSecretApp(cfg ConfigFile, t Target, env, project string) (Application, error) {
+func buildSecretApp(cfg ConfigFile, t Target, env, project string, secretsRepoURL string, appsDir string, ns string) (Application, error) {
 	name := secretAppNamePrefix + cfg.Config.App.Name + "-" + t.Cluster.Name
 	secretsPath := appsDir + "/" + cfg.Config.App.Name + "/" + secretAppPathSuffix + "/" + env + "/"
 
@@ -187,7 +188,7 @@ func buildSecretApp(cfg ConfigFile, t Target, env, project string) (Application,
 		Kind:       appKind,
 		Metadata: Metadata{
 			Name:      name,
-			Namespace: argoNamespace,
+			Namespace: ns,
 			Labels: map[string]string{
 				kubeAppLabel: name,
 				"env":        env,
@@ -197,7 +198,7 @@ func buildSecretApp(cfg ConfigFile, t Target, env, project string) (Application,
 		Spec: Spec{
 			Project: project,
 			Source: &Source{
-				RepoURL:        secretsRepo,
+				RepoURL:        secretsRepoURL,
 				Path:           secretsPath,
 				TargetRevision: firstNonEmpty(t.Override.ExternalSecrets, cfg.Config.App.HelmChart.Default.ExternalSecrets),
 			},
