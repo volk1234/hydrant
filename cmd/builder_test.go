@@ -137,3 +137,26 @@ func TestBuildSecretApp(t *testing.T) {
 		t.Errorf("RepoURL = %q, want %q", app.Spec.Source.RepoURL, secretsRepoURL)
 	}
 }
+
+func TestMarshalYAML(t *testing.T) {
+	app := Application{
+		APIVersion: appAPIVersion,
+		Kind:       appKind,
+		Metadata:   Metadata{Name: "my-app"},
+	}
+	bytes, err := marshalYAML(app)
+	if err != nil {
+		t.Fatalf("marshalYAML failed: %v", err)
+	}
+	if len(bytes) == 0 {
+		t.Fatal("expected non-empty YAML bytes")
+	}
+}
+
+func TestNamespaceMetadataFromEmpty(t *testing.T) {
+	res := namespaceMetadataFrom(nil)
+	if res != nil {
+		t.Errorf("namespaceMetadataFrom(nil) = %v, want nil", res)
+	}
+}
+

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -354,3 +356,58 @@ func TestCheckPrefixInClusters(t *testing.T) {
 		})
 	}
 }
+
+func TestParseAndLoadSettings(t *testing.T) {
+	validYAML := `
+labelPrefix: hydrant.sh/
+secretsRepoURL: git@github.com:example/secrets.git
+apps: cluster-init/apps
+clusters: generated/clusters
+argocd:
+  namespace: argocd
+`
+	// parseSettings
+	s, err := parseSettings([]byte(validYAML))
+	if err != nil {
+		t.Fatalf("parseSettings failed: %v", err)
+	}
+	if s.LabelPrefix != "hydrant.sh/" {
+		t.Errorf("LabelPrefix = %q, want hydrant.sh/", s.LabelPrefix)
+	}
+
+	// parseSettings unknown fields rejected
+	_, err = parseSettings([]byte(validYAML + "\nextraField: true\n"))
+	if err == nil || !strings.Contains(err.Error(), "field extraField not found") {
+		t.Errorf("expected error for extra field, got %v", err)
+	}
+
+	// loadSettings
+	tempRepo := t.TempDir()
+	if err := os.WriteFile(filepath.Join(tempRepo, "hydrant.yaml"), []byte(validYAML), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	loaded, errs := loadSettings(tempRepo)
+	if len(errs) > 0 {
+		t.Fatalf("loadSettings failed: %v", errs)
+	}
+	if loaded.Apps != "cluster-init/apps" {
+		t.Errorf("Apps = %q, want cluster-init/apps", loaded.Apps)
+	}
+
+	// loadSettings missing file
+	_, errs = loadSettings(filepath.Join(tempRepo, "nonexistent"))
+	if len(errs) == 0 {
+		t.Errorf("expected error for missing hydrant.yaml, got none")
+	}
+}
+
+func TestProfileLabel(t *testing.T) {
+	s := Settings{LabelPrefix: "custom.prefix/"}
+	got := s.ProfileLabel()
+	want := "custom.prefix/profile-"
+	if got != want {
+		t.Errorf("ProfileLabel() = %q, want %q", got, want)
+	}
+}
+

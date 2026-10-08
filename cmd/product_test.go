@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -157,3 +158,47 @@ func TestCheckOutDir(t *testing.T) {
 		})
 	}
 }
+
+func TestOutputPath(t *testing.T) {
+	got := outputPath("my-cluster", "my-app")
+	want := "my-cluster/my-app.yaml"
+	if got != want {
+		t.Errorf("outputPath = %q, want %q", got, want)
+	}
+}
+
+func TestAddToProductAndWriteProduct(t *testing.T) {
+	product := make(map[string][]byte)
+	app := Application{
+		APIVersion: appAPIVersion,
+		Kind:       appKind,
+		Metadata:   Metadata{Name: "app1"},
+	}
+
+	path := outputPath("c1", "app1")
+	if err := addToProduct(product, path, app); err != nil {
+		t.Fatalf("addToProduct failed: %v", err)
+	}
+	if len(product[path]) == 0 {
+		t.Fatalf("expected rendered bytes in product[%q]", path)
+	}
+
+	// Write product to temp disk
+	outDir := t.TempDir()
+	env := "dev"
+	if err := writeProduct(outDir, env, product); err != nil {
+		t.Fatalf("writeProduct failed: %v", err)
+	}
+
+	// Verify target file exists
+	expectedFile := filepath.Join(outDir, env, path)
+	if _, err := os.Stat(expectedFile); err != nil {
+		t.Errorf("expected rendered file %s to exist on disk: %v", expectedFile, err)
+	}
+
+	// Verify repeated write cleanly replaces previous tree
+	if err := writeProduct(outDir, env, product); err != nil {
+		t.Fatalf("repeated writeProduct failed: %v", err)
+	}
+}
+

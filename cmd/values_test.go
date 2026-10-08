@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -222,3 +224,94 @@ func TestNormalizeValues_Determinism(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildValuesAndLayers(t *testing.T) {
+	tempRepo := t.TempDir()
+	appRelDir := "apps/demo"
+	appDir := filepath.Join(tempRepo, appRelDir)
+	if err := os.MkdirAll(appDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Layer 1: values.yaml
+	if err := os.WriteFile(filepath.Join(appDir, "values.yaml"), []byte("replicaCount: 1\nenv: base\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Layer 2: values.dev.yaml
+	if err := os.WriteFile(filepath.Join(appDir, "values.dev.yaml"), []byte("env: dev\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Layer 3: values.c1.yaml
+	if err := os.WriteFile(filepath.Join(appDir, "values.c1.yaml"), []byte("cluster: c1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Test readValuesLayers directly
+	layers, err := readValuesLayers(tempRepo, appRelDir, "dev", "c1")
+	if err != nil {
+		t.Fatalf("readValuesLayers failed: %v", err)
+	}
+	if len(layers) != 3 {
+		t.Fatalf("expected 3 layers, got %d", len(layers))
+	}
+
+	// Test buildValues with inline_values tokens
+	cfg := ConfigFile{
+		Dir:     appRelDir,
+		RelPath: appRelDir + "/config-dev.yaml",
+		Config: Config{
+			InlineValues: "inlineCluster: [CLUSTER_NAME]\nregion: [REGION]\n",
+		},
+	}
+	target := Target{
+		Cluster: Cluster{
+			Name: "c1",
+			Labels: map[string]string{
+				"hydrant.sh/region": "eu-west-1",
+			},
+		},
+	}
+
+	vo, err := buildValues(tempRepo, cfg, target, "dev", "hydrant.sh/")
+	if err != nil {
+		t.Fatalf("buildValues failed: %v", err)
+	}
+	if vo.IsZero() {
+		t.Fatal("expected non-zero ValuesObject")
+	}
+
+	marshaled := marshalNodeHelper(t, vo.node)
+	expectedSubstrings := []string{
+		"cluster: c1",
+		"env: dev",
+		"inlineCluster: c1",
+		"region: eu-west-1",
+		"replicaCount: 1",
+	}
+	for _, substr := range expectedSubstrings {
+		if !strings.Contains(marshaled, substr) {
+			t.Errorf("expected marshaled output to contain %q, got:\n%s", substr, marshaled)
+		}
+	}
+}
+
+func TestValuesObject(t *testing.T) {
+	// Zero value
+	var zero ValuesObject
+	if !zero.IsZero() {
+		t.Errorf("zero ValuesObject should be IsZero=true")
+	}
+
+	// Non-zero value
+	node := parseValuesHelper(t, "key: value\n")
+	vo := ValuesObject{node: node}
+	if vo.IsZero() {
+		t.Errorf("populated ValuesObject should be IsZero=false")
+	}
+
+	marshaled, err := vo.MarshalYAML()
+	if err != nil || marshaled != node {
+		t.Errorf("MarshalYAML mismatch: %v, %v", marshaled, err)
+	}
+}
+
