@@ -39,7 +39,73 @@ stringData:
   name: prod-eu-1
 `,
 			wantErr:     true,
-			errContains: "expected kind: Secret",
+			errContains: "expected kinds: Secret or ExternalSecret",
+		},
+		"valid external secret": {
+			data: `
+kind: ExternalSecret
+metadata:
+  labels:
+    ignored: label
+spec:
+  target:
+    template:
+      metadata:
+        labels:
+          argocd.argoproj.io/secret-type: cluster
+          hydrant.sh/region: eu-central-1
+        annotations:
+          hydrant.sh/account: "987"
+      data:
+        name: prod-eso-1
+`,
+			wantErr:  false,
+			wantName: "prod-eso-1",
+		},
+		"external secret missing secret-type label": {
+			data: `
+kind: ExternalSecret
+spec:
+  target:
+    template:
+      metadata:
+        labels:
+          other: value
+      data:
+        name: prod-eso-1
+`,
+			wantErr:     true,
+			errContains: "expected label argocd.argoproj.io/secret-type=cluster",
+		},
+		"external secret empty data name": {
+			data: `
+kind: ExternalSecret
+spec:
+  target:
+    template:
+      metadata:
+        labels:
+          argocd.argoproj.io/secret-type: cluster
+      data:
+        name: ""
+`,
+			wantErr:     true,
+			errContains: "spec.target.template.data.name is empty or missing",
+		},
+		"external secret invalid RFC-1123 name": {
+			data: `
+kind: ExternalSecret
+spec:
+  target:
+    template:
+      metadata:
+        labels:
+          argocd.argoproj.io/secret-type: cluster
+      data:
+        name: Prod_ESO_Cluster
+`,
+			wantErr:     true,
+			errContains: "spec.target.template.data.name must conform to RFC-1123",
 		},
 		"missing secret-type label": {
 			data: `
@@ -194,8 +260,32 @@ stringData:
 		t.Fatalf("unexpected loaded clusters: %+v", clusters)
 	}
 
-	// Add duplicate cluster name
-	if err := os.WriteFile(filepath.Join(clustersPath, "dev", "c2.yaml"), []byte(validSecret), 0o644); err != nil {
+	// Add valid ExternalSecret to dev
+	validESO := `
+kind: ExternalSecret
+spec:
+  target:
+    template:
+      metadata:
+        labels:
+          argocd.argoproj.io/secret-type: cluster
+      data:
+        name: cluster-2
+`
+	if err := os.WriteFile(filepath.Join(clustersPath, "dev", "c2.yaml"), []byte(validESO), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	clusters, err = loadClusters(tempRepo, "dev", clustersDir)
+	if err != nil {
+		t.Fatalf("loadClusters with ESO unexpected error: %v", err)
+	}
+	if len(clusters) != 2 || clusters["cluster-1"].Name != "cluster-1" || clusters["cluster-2"].Name != "cluster-2" {
+		t.Fatalf("unexpected loaded clusters: %+v", clusters)
+	}
+
+	// Add duplicate cluster name (c3 has cluster-1 name again)
+	if err := os.WriteFile(filepath.Join(clustersPath, "dev", "c3.yaml"), []byte(validSecret), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	_, err = loadClusters(tempRepo, "dev", clustersDir)
