@@ -1,0 +1,26 @@
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: c3-cluster
+  namespace: argocd
+spec:
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: vault-backend
+  target:
+    name: c3-cluster
+    template:
+      metadata:
+        labels:
+          argocd.argoproj.io/secret-type: cluster
+          hydrant.sh/env: "dev"
+          hydrant.sh/profile-base: "true"
+          hydrant.sh/region_short: "use1"
+          hydrant.sh/region_name: "us-east-1"
+      data:
+        name: c3
+  data:
+    - secretKey: server
+      remoteRef:
+        key: argocd/c3-cluster
+        property: server

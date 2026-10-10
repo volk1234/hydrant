@@ -41,12 +41,21 @@ for dir in "${apps[@]}"; do
 
     inline=$(yq '.inline_values // ""' "$cfg")
     if [ -n "$inline" ]; then
-      secret=$(grep -l "^  name: $cluster\$" "$repo/$clustersdir/$env"/*.yaml | head -1)
+      # Secret keeps the name in stringData, ExternalSecret in its template (R4.25).
+      secret=""
+      for f in "$repo/$clustersdir/$env"/*.yaml; do
+        if [ "$(yq -r '.stringData.name // .spec.target.template.data.name // ""' "$f")" = "$cluster" ]; then
+          secret=$f; break
+        fi
+      done
+      [ -n "$secret" ] || { echo "gate: no cluster file with name $cluster" >&2; exit 1; }
+      meta='.metadata'
+      [ "$(yq -r '.kind' "$secret")" = "ExternalSecret" ] && meta='.spec.target.template.metadata'
       sedexpr="s/\\[CLUSTER_NAME\\]/$cluster/g;"
       while IFS=$'\t' read -r key val; do
         tok=$(echo "${key#"$prefix"}" | tr '[:lower:]' '[:upper:]')
         sedexpr+="s|\\[$tok\\]|$val|g;"
-      done < <(PREFIX="$prefix" yq -r '(.metadata.labels // {}) + (.metadata.annotations // {}) | to_entries[] | select(.key | test("^" + strenv(PREFIX))) | [.key, .value] | @tsv' "$secret")
+      done < <(PREFIX="$prefix" yq -r "($meta.labels // {}) + ($meta.annotations // {}) | to_entries[] | select(.key | test(\"^\" + strenv(PREFIX))) | [.key, .value] | @tsv" "$secret")
       printf '%s\n' "$inline" | sed "$sedexpr" > "$tmp/inline.yaml"
       left+=(-f "$tmp/inline.yaml")
     fi
