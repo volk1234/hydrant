@@ -107,6 +107,106 @@ spec:
 			wantErr:     true,
 			errContains: "spec.target.template.data.name must conform to RFC-1123",
 		},
+		"external secret templateFrom is rejected": {
+			data: `
+kind: ExternalSecret
+spec:
+  target:
+    template:
+      templateFrom:
+        - configMap:
+            name: cluster-template
+      metadata:
+        labels:
+          argocd.argoproj.io/secret-type: cluster
+      data:
+        name: c3
+`,
+			wantErr:     true,
+			errContains: "spec.target.template.templateFrom is not supported",
+		},
+		"external secret with template in name is rejected": {
+			data: `
+kind: ExternalSecret
+spec:
+  target:
+    template:
+      metadata:
+        labels:
+          argocd.argoproj.io/secret-type: cluster
+      data:
+        name: "{{ .clusterName }}"
+`,
+			wantErr:     true,
+			errContains: "name, labels and annotations must be plain values: hydrant cannot read values the operator fills in ({{ }})",
+		},
+		"external secret with template in label value is rejected": {
+			data: `
+kind: ExternalSecret
+spec:
+  target:
+    template:
+      metadata:
+        labels:
+          argocd.argoproj.io/secret-type: cluster
+          env: "{{ .env }}"
+      data:
+        name: prod-cluster
+`,
+			wantErr:     true,
+			errContains: "name, labels and annotations must be plain values: hydrant cannot read values the operator fills in ({{ }})",
+		},
+		"external secret with template in label key is rejected": {
+			data: `
+kind: ExternalSecret
+spec:
+  target:
+    template:
+      metadata:
+        labels:
+          argocd.argoproj.io/secret-type: cluster
+          "{{ .key }}": value
+      data:
+        name: prod-cluster
+`,
+			wantErr:     true,
+			errContains: "name, labels and annotations must be plain values: hydrant cannot read values the operator fills in ({{ }})",
+		},
+		"external secret with template in annotation is rejected": {
+			data: `
+kind: ExternalSecret
+spec:
+  target:
+    template:
+      metadata:
+        labels:
+          argocd.argoproj.io/secret-type: cluster
+        annotations:
+          region: "{{ .region }}"
+      data:
+        name: prod-cluster
+`,
+			wantErr:     true,
+			errContains: "name, labels and annotations must be plain values: hydrant cannot read values the operator fills in ({{ }})",
+		},
+		"external secret with secret-type label only on metadata.labels rejected with hint": {
+			data: `
+kind: ExternalSecret
+metadata:
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+spec:
+  target:
+    template:
+      metadata:
+        labels:
+          other: value
+      data:
+        name: prod-cluster
+`,
+			wantErr:     true,
+			errContains: "label argocd.argoproj.io/secret-type is in metadata.labels; move it to spec.target.template.metadata.labels",
+		},
 		"missing secret-type label": {
 			data: `
 kind: Secret

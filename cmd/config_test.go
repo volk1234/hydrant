@@ -197,6 +197,24 @@ app:
 			wantErr:  false,
 			wantName: "test-app",
 		},
+		"valid config with helmchart upgrade.auto": {
+			data: `
+app:
+  name: test-app
+  helmchart:
+    name: chart
+    repoURL: https://example.com
+    upgrade:
+      auto: true
+    default:
+      targetRevision: 1.0.0
+      valuesRevision: 1.0.0
+  destination:
+    namespace: test-ns
+`,
+			wantErr:  false,
+			wantName: "test-app",
+		},
 		"unknown fields rejected": {
 			data: `
 app:

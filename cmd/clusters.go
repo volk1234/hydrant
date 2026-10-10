@@ -26,8 +26,9 @@ type esoSecretFile struct {
 	Spec     struct {
 		Target struct {
 			Template struct {
-				Metadata objectMeta `yaml:"metadata"`
-				Data     struct {
+				Metadata     objectMeta `yaml:"metadata"`
+				TemplateFrom []any      `yaml:"templateFrom"`
+				Data         struct {
 					Name string `yaml:"name"`
 				} `yaml:"data"`
 			} `yaml:"template"`
@@ -103,6 +104,15 @@ func loadClusters(repo, env, clustersDir string) (map[string]Cluster, error) {
 	return clusters, nil
 }
 
+func hasTemplate(m map[string]string) bool {
+	for k, v := range m {
+		if strings.Contains(k, "{{") || strings.Contains(v, "{{") {
+			return true
+		}
+	}
+	return false
+}
+
 func parseClusterSecret(data []byte, relPath string) (Cluster, error) {
 	var name string
 	var meta objectMeta
@@ -126,8 +136,20 @@ func parseClusterSecret(data []byte, relPath string) (Cluster, error) {
 		if err := yaml.Unmarshal(data, &es); err != nil {
 			return Cluster{}, fmt.Errorf("%s: %w", relPath, err)
 		}
+		if len(es.Spec.Target.Template.TemplateFrom) > 0 {
+			return Cluster{}, fmt.Errorf("%s: ExternalSecret: spec.target.template.templateFrom is not supported", relPath)
+		}
+		if es.Metadata.Labels["argocd.argoproj.io/secret-type"] == "cluster" && es.Spec.Target.Template.Metadata.Labels["argocd.argoproj.io/secret-type"] != "cluster" {
+			return Cluster{}, fmt.Errorf("%s:  ExternalSecret: label argocd.argoproj.io/secret-type is in metadata.labels; move it to spec.target.template.metadata.labels", relPath)
+		}
+		t := es.Spec.Target.Template
+		if strings.Contains(t.Data.Name, "{{") || hasTemplate(t.Metadata.Labels) || hasTemplate(t.Metadata.Annotations) {
+			return Cluster{}, fmt.Errorf("%s: ExternalSecret: name, labels and annotations must be plain values: hydrant cannot read values the operator fills in ({{ }})", relPath)
+		}
+
 		name, meta = es.Spec.Target.Template.Data.Name, es.Spec.Target.Template.Metadata
 		nameField = "spec.target.template.data.name"
+
 	default:
 		return Cluster{}, fmt.Errorf("%s: not a cluster secret: expected kinds: Secret or ExternalSecret but got: %q", relPath, head.Kind)
 	}
