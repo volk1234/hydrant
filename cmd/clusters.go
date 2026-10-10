@@ -136,18 +136,19 @@ func parseClusterSecret(data []byte, relPath string) (Cluster, error) {
 		if err := yaml.Unmarshal(data, &es); err != nil {
 			return Cluster{}, fmt.Errorf("%s: %w", relPath, err)
 		}
-		if len(es.Spec.Target.Template.TemplateFrom) > 0 {
+		t := es.Spec.Target.Template
+		if len(t.TemplateFrom) > 0 {
 			return Cluster{}, fmt.Errorf("%s: ExternalSecret: spec.target.template.templateFrom is not supported", relPath)
 		}
-		if es.Metadata.Labels["argocd.argoproj.io/secret-type"] == "cluster" && es.Spec.Target.Template.Metadata.Labels["argocd.argoproj.io/secret-type"] != "cluster" {
-			return Cluster{}, fmt.Errorf("%s:  ExternalSecret: label argocd.argoproj.io/secret-type is in metadata.labels; move it to spec.target.template.metadata.labels", relPath)
+		if es.Metadata.Labels["argocd.argoproj.io/secret-type"] == "cluster" && t.Metadata.Labels["argocd.argoproj.io/secret-type"] != "cluster" {
+			return Cluster{}, fmt.Errorf("%s: ExternalSecret: label argocd.argoproj.io/secret-type is in metadata.labels; move it to spec.target.template.metadata.labels", relPath)
 		}
-		t := es.Spec.Target.Template
+
 		if strings.Contains(t.Data.Name, "{{") || hasTemplate(t.Metadata.Labels) || hasTemplate(t.Metadata.Annotations) {
 			return Cluster{}, fmt.Errorf("%s: ExternalSecret: name, labels and annotations must be plain values: hydrant cannot read values the operator fills in ({{ }})", relPath)
 		}
 
-		name, meta = es.Spec.Target.Template.Data.Name, es.Spec.Target.Template.Metadata
+		name, meta = t.Data.Name, t.Metadata
 		nameField = "spec.target.template.data.name"
 
 	default:

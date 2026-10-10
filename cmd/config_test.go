@@ -224,6 +224,24 @@ unknown_field: true
 			wantErr:     true,
 			errContains: "field unknown_field not found",
 		},
+		"unknown nested field inside upgrade rejected": {
+			data: `
+app:
+  name: test-app
+  helmchart:
+    name: chart
+    repoURL: https://example.com
+    upgrade:
+      other: 1
+    default:
+      targetRevision: 1.0.0
+      valuesRevision: 1.0.0
+  destination:
+    namespace: test-ns
+`,
+			wantErr:     true,
+			errContains: "field other not found",
+		},
 		"malformed yaml": {
 			data:        `:::invalid`,
 			wantErr:     true,
