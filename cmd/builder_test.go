@@ -2,12 +2,13 @@ package main
 
 import (
 	"slices"
+	"strings"
 	"testing"
 )
 
 func TestBuildApp(t *testing.T) {
 	cfg := ConfigFile{
-		RelPath: "apps/my-app/config-dev.yaml",
+		RelPath: "cluster-init/apps/my-app/config-dev.yaml",
 		Config: Config{
 			App: App{
 				Name: "my-app",
@@ -51,10 +52,24 @@ func TestBuildApp(t *testing.T) {
 	}
 
 	values := ValuesObject{}
-	nsLabels := map[string]string{"readiness": "enabled"}
 	argoNS := "argocd"
 
-	app, err := buildApp(cfg, target, "dev", "default-proj", values, nsLabels, argoNS)
+	settings := Settings{
+		LabelPrefix:    "hydrant.sh/",
+		SecretsRepoURL: "git@github.com:org/secrets.git",
+		Apps:           "cluster-init/apps",
+		ArgoCD: SettingsArgoCD{
+			SyncPolicy: SettingsSyncPolicy{
+				ManagedNamespaceMetadata: struct {
+					Labels map[string]string `yaml:"labels"`
+				}{
+					Labels: map[string]string{"readiness": "enabled"},
+				},
+			},
+		},
+	}
+
+	app, err := buildApp(cfg, target, "dev", "default-proj", values, settings, argoNS)
 	if err != nil {
 		t.Fatalf("buildApp unexpected error: %v", err)
 	}
@@ -67,6 +82,9 @@ func TestBuildApp(t *testing.T) {
 	}
 	if app.Metadata.Annotations["argocd.argoproj.io/sync-wave"] != "5" {
 		t.Errorf("sync-wave annotation = %q, want 5", app.Metadata.Annotations["argocd.argoproj.io/sync-wave"])
+	}
+	if app.Metadata.Annotations["hydrant.sh/source-config"] != cfg.RelPath {
+		t.Errorf("source-config annotation = %q, want %q", app.Metadata.Annotations["hydrant.sh/source-config"], cfg.RelPath)
 	}
 	if !slices.Contains(app.Metadata.Finalizers, resourcesFinalizer) {
 		t.Errorf("Finalizers missing cascade delete finalizer: %v", app.Metadata.Finalizers)
@@ -85,6 +103,11 @@ func TestBuildApp(t *testing.T) {
 		t.Errorf("Automated sync policy not properly configured: %+v", app.Spec.SyncPolicy.Automated)
 	}
 
+	// ManagedNamespaceMetadata
+	if app.Spec.SyncPolicy.ManagedNamespaceMetadata == nil || app.Spec.SyncPolicy.ManagedNamespaceMetadata.Labels["readiness"] != "enabled" {
+		t.Errorf("ManagedNamespaceMetadata mismatch: %+v", app.Spec.SyncPolicy.ManagedNamespaceMetadata)
+	}
+
 	// IgnoreDifferences
 	if len(app.Spec.IgnoreDifferences) != 1 || app.Spec.IgnoreDifferences[0].Kind != "Deployment" {
 		t.Errorf("IgnoreDifferences mismatch: %+v", app.Spec.IgnoreDifferences)
@@ -93,7 +116,7 @@ func TestBuildApp(t *testing.T) {
 
 func TestBuildSecretApp(t *testing.T) {
 	cfg := ConfigFile{
-		RelPath: "apps/karpenter/config-dev.yaml",
+		RelPath: "cluster-init/apps/karpenter/config-dev.yaml",
 		Config: Config{
 			App: App{
 				Name: "karpenter",
@@ -113,11 +136,14 @@ func TestBuildSecretApp(t *testing.T) {
 		Cluster: Cluster{Name: "c1"},
 	}
 
-	secretsRepoURL := "git@github.com:org/secrets.git"
-	appsDir := "cluster-init/apps"
+	settings := Settings{
+		LabelPrefix:    "hydrant.sh/",
+		SecretsRepoURL: "git@github.com:org/secrets.git",
+		Apps:           "cluster-init/apps",
+	}
 	argoNS := "argocd"
 
-	app, err := buildSecretApp(cfg, target, "dev", "default-proj", secretsRepoURL, appsDir, argoNS)
+	app, err := buildSecretApp(cfg, target, "dev", "default-proj", settings, argoNS)
 	if err != nil {
 		t.Fatalf("buildSecretApp unexpected error: %v", err)
 	}
@@ -133,8 +159,54 @@ func TestBuildSecretApp(t *testing.T) {
 	if app.Spec.Source.TargetRevision != "main" {
 		t.Errorf("TargetRevision = %q, want %q", app.Spec.Source.TargetRevision, "main")
 	}
-	if app.Spec.Source.RepoURL != secretsRepoURL {
-		t.Errorf("RepoURL = %q, want %q", app.Spec.Source.RepoURL, secretsRepoURL)
+	if app.Spec.Source.RepoURL != settings.SecretsRepoURL {
+		t.Errorf("RepoURL = %q, want %q", app.Spec.Source.RepoURL, settings.SecretsRepoURL)
+	}
+	if app.Metadata.Annotations == nil {
+		t.Fatal("expected non-nil Annotations")
+	}
+	if len(app.Metadata.Annotations) != 1 {
+		t.Errorf("Annotations length = %d, want 1: %+v", len(app.Metadata.Annotations), app.Metadata.Annotations)
+	}
+	if app.Metadata.Annotations["hydrant.sh/source-config"] != cfg.RelPath {
+		t.Errorf("source-config annotation = %q, want %q", app.Metadata.Annotations["hydrant.sh/source-config"], cfg.RelPath)
+	}
+}
+
+func TestBuildAppCustomLabelPrefix(t *testing.T) {
+	cfg := ConfigFile{
+		RelPath: "cluster-init/apps/karpenter/config-dev.yaml",
+		Config: Config{
+			App: App{Name: "karpenter"},
+		},
+	}
+	target := Target{Cluster: Cluster{Name: "c1"}}
+	settings := Settings{
+		LabelPrefix:    "example.org/",
+		SecretsRepoURL: "git@github.com:org/secrets.git",
+		Apps:           "cluster-init/apps",
+	}
+
+	app, err := buildApp(cfg, target, "dev", "default-proj", ValuesObject{}, settings, "argocd")
+	if err != nil {
+		t.Fatalf("buildApp unexpected error: %v", err)
+	}
+	if got := app.Metadata.Annotations["example.org/source-config"]; got != cfg.RelPath {
+		t.Errorf("Annotations[example.org/source-config] = %q, want %q", got, cfg.RelPath)
+	}
+	if _, ok := app.Metadata.Annotations["hydrant.sh/source-config"]; ok {
+		t.Errorf("Annotations unexpectedly contains hydrant.sh/source-config: %+v", app.Metadata.Annotations)
+	}
+
+	sapp, err := buildSecretApp(cfg, target, "dev", "default-proj", settings, "argocd")
+	if err != nil {
+		t.Fatalf("buildSecretApp unexpected error: %v", err)
+	}
+	if got := sapp.Metadata.Annotations["example.org/source-config"]; got != cfg.RelPath {
+		t.Errorf("Annotations[example.org/source-config] = %q, want %q", got, cfg.RelPath)
+	}
+	if _, ok := sapp.Metadata.Annotations["hydrant.sh/source-config"]; ok {
+		t.Errorf("Annotations unexpectedly contains hydrant.sh/source-config: %+v", sapp.Metadata.Annotations)
 	}
 }
 
@@ -160,3 +232,70 @@ func TestNamespaceMetadataFromEmpty(t *testing.T) {
 	}
 }
 
+func TestCheckLabelValues(t *testing.T) {
+	relPath := "cluster-init/apps/karpenter/config-dev.yaml"
+	objName := "test-object"
+
+	t.Run("boundary_63_chars", func(t *testing.T) {
+		app := Application{
+			Metadata: Metadata{
+				Name: objName,
+				Labels: map[string]string{
+					"my-label": strings.Repeat("a", 63),
+				},
+			},
+		}
+		errs := checkLabelValues(app, relPath)
+		if len(errs) != 0 {
+			t.Errorf("expected 0 errors, got %d: %v", len(errs), errs)
+		}
+	})
+
+	t.Run("over_boundary_64_chars", func(t *testing.T) {
+		labelKey := "long-label"
+		app := Application{
+			Metadata: Metadata{
+				Name: objName,
+				Labels: map[string]string{
+					labelKey: strings.Repeat("a", 64),
+				},
+			},
+		}
+		errs := checkLabelValues(app, relPath)
+		if len(errs) != 1 {
+			t.Fatalf("expected 1 error, got %d: %v", len(errs), errs)
+		}
+		msg := errs[0].Error()
+		if !strings.Contains(msg, objName) {
+			t.Errorf("error %q should contain object name %q", msg, objName)
+		}
+		if !strings.Contains(msg, labelKey) {
+			t.Errorf("error %q should contain label key %q", msg, labelKey)
+		}
+		if !strings.Contains(msg, "64") {
+			t.Errorf("error %q should contain '64'", msg)
+		}
+	})
+
+	t.Run("two_long_labels_sorted", func(t *testing.T) {
+		app := Application{
+			Metadata: Metadata{
+				Name: objName,
+				Labels: map[string]string{
+					"b": strings.Repeat("b", 64),
+					"a": strings.Repeat("a", 64),
+				},
+			},
+		}
+		errs := checkLabelValues(app, relPath)
+		if len(errs) != 2 {
+			t.Fatalf("expected 2 errors, got %d: %v", len(errs), errs)
+		}
+		if !strings.Contains(errs[0].Error(), "label a:") {
+			t.Errorf("first error should be about label a, got: %q", errs[0].Error())
+		}
+		if !strings.Contains(errs[1].Error(), "label b:") {
+			t.Errorf("second error should be about label b, got: %q", errs[1].Error())
+		}
+	})
+}

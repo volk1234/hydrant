@@ -2,6 +2,9 @@ package main
 
 import (
 	"bytes"
+	"fmt"
+	"maps"
+	"slices"
 	"strconv"
 
 	"go.yaml.in/yaml/v3"
@@ -17,6 +20,7 @@ const chartParentPrefix = "cluster-init-"
 const secretAppPathSuffix = "external_secrets"
 const secretAppNamePrefix = "external-secret-"
 const secretAppNamePluralPrefix = "external-secrets-"
+const maxLabelValueLen = 63
 
 type Application struct {
 	APIVersion string   `yaml:"apiVersion"`
@@ -118,7 +122,19 @@ func namespaceMetadataFrom(labels map[string]string) *ManagedNamespaceMetadata {
 	return &ManagedNamespaceMetadata{Labels: labels}
 }
 
-func buildApp(cfg ConfigFile, t Target, env, project string, values ValuesObject, nsLabels map[string]string, ns string) (Application, error) {
+func checkLabelValues(app Application, relPath string) []error {
+	var errs []error
+	keys := slices.Sorted(maps.Keys(app.Metadata.Labels))
+	for _, k := range keys {
+		v := app.Metadata.Labels[k]
+		if len(v) > maxLabelValueLen {
+			errs = append(errs, fmt.Errorf("%s: object %q: label %s: value is %d characters, limit is 63", relPath, app.Metadata.Name, k, len(v)))
+		}
+	}
+	return errs
+}
+
+func buildApp(cfg ConfigFile, t Target, env, project string, values ValuesObject, s Settings, ns string) (Application, error) {
 	name := cfg.Config.App.Name + "-" + t.Cluster.Name
 
 	app := Application{
@@ -129,6 +145,7 @@ func buildApp(cfg ConfigFile, t Target, env, project string, values ValuesObject
 			Namespace: ns,
 			Annotations: map[string]string{
 				"argocd.argoproj.io/sync-wave": strconv.Itoa(cfg.Config.ArgoCD.SyncWave),
+				s.SourceConfigAnnotation():     cfg.RelPath,
 			},
 			Labels: map[string]string{
 				kubeAppLabel: name,
@@ -155,7 +172,7 @@ func buildApp(cfg ConfigFile, t Target, env, project string, values ValuesObject
 				Namespace: firstNonEmpty(t.Override.Namespace, cfg.Config.App.Destination.Namespace),
 			},
 			SyncPolicy: SyncPolicy{
-				ManagedNamespaceMetadata: namespaceMetadataFrom(nsLabels),
+				ManagedNamespaceMetadata: namespaceMetadataFrom(s.ArgoCD.SyncPolicy.ManagedNamespaceMetadata.Labels),
 				SyncOptions: []string{
 					"ServerSideApply=" + strconv.FormatBool(cfg.Config.ArgoCD.ServerSideApply),
 					"CreateNamespace=" + strconv.FormatBool(createNamespace),
@@ -179,9 +196,9 @@ func buildApp(cfg ConfigFile, t Target, env, project string, values ValuesObject
 	return app, nil
 }
 
-func buildSecretApp(cfg ConfigFile, t Target, env, project string, secretsRepoURL string, appsDir string, ns string) (Application, error) {
+func buildSecretApp(cfg ConfigFile, t Target, env, project string, s Settings, ns string) (Application, error) {
 	name := secretAppNamePrefix + cfg.Config.App.Name + "-" + t.Cluster.Name
-	secretsPath := appsDir + "/" + cfg.Config.App.Name + "/" + secretAppPathSuffix + "/" + env + "/"
+	secretsPath := s.Apps + "/" + cfg.Config.App.Name + "/" + secretAppPathSuffix + "/" + env + "/"
 
 	app := Application{
 		APIVersion: appAPIVersion,
@@ -189,6 +206,9 @@ func buildSecretApp(cfg ConfigFile, t Target, env, project string, secretsRepoUR
 		Metadata: Metadata{
 			Name:      name,
 			Namespace: ns,
+			Annotations: map[string]string{
+				s.SourceConfigAnnotation(): cfg.RelPath,
+			},
 			Labels: map[string]string{
 				kubeAppLabel: name,
 				"env":        env,
@@ -198,7 +218,7 @@ func buildSecretApp(cfg ConfigFile, t Target, env, project string, secretsRepoUR
 		Spec: Spec{
 			Project: project,
 			Source: &Source{
-				RepoURL:        secretsRepoURL,
+				RepoURL:        s.SecretsRepoURL,
 				Path:           secretsPath,
 				TargetRevision: firstNonEmpty(t.Override.ExternalSecrets, cfg.Config.App.HelmChart.Default.ExternalSecrets),
 			},

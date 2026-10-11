@@ -410,4 +410,3 @@ func TestProfileLabel(t *testing.T) {
 		t.Errorf("ProfileLabel() = %q, want %q", got, want)
 	}
 }
-

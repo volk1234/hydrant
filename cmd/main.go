@@ -94,12 +94,12 @@ func main() {
 	}
 
 	var intents []Intent
-	quarantined := make(map[string]bool)
+	brokenConfigs := make(map[string]bool)
 	for _, cf := range configs {
 		targets, errs, warns := resolveTargets(cf, clusters, settings.ProfileLabel())
 		if len(errs) > 0 {
 			failed = true
-			quarantined[cf.RelPath] = true
+			brokenConfigs[cf.RelPath] = true
 		}
 		for _, e := range errs {
 			fmt.Fprintln(os.Stderr, e)
@@ -126,29 +126,34 @@ func main() {
 	product := make(map[string][]byte)
 
 	for _, it := range intents {
-		if quarantined[it.Config.RelPath] {
+		if brokenConfigs[it.Config.RelPath] {
 			continue
 		}
 		ns, err := argoNamespaceFor(it.Config, settings)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			failed = true
-			quarantined[it.Config.RelPath] = true
+			brokenConfigs[it.Config.RelPath] = true
 			continue
 		}
 		values, err := buildValues(*repo, it.Config, it.Target, *env, settings.LabelPrefix)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			failed = true
-			quarantined[it.Config.RelPath] = true
 			continue
 		}
 
-		app, err := buildApp(it.Config, it.Target, *env, *project, values, settings.ArgoCD.SyncPolicy.ManagedNamespaceMetadata.Labels, ns)
+		app, err := buildApp(it.Config, it.Target, *env, *project, values, settings, ns)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			failed = true
-			quarantined[it.Config.RelPath] = true
+			continue
+		}
+		if errs := checkLabelValues(app, it.Config.RelPath); len(errs) > 0 {
+			for _, e := range errs {
+				fmt.Fprintln(os.Stderr, e)
+			}
+			failed = true
 			continue
 		}
 		appName := it.Config.Config.App.Name
@@ -160,11 +165,17 @@ func main() {
 		}
 
 		if it.Secrets {
-			sapp, err := buildSecretApp(it.Config, it.Target, *env, *project, settings.SecretsRepoURL, settings.Apps, ns)
+			sapp, err := buildSecretApp(it.Config, it.Target, *env, *project, settings, ns)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				failed = true
-				quarantined[it.Config.RelPath] = true
+				continue
+			}
+			if errs := checkLabelValues(sapp, it.Config.RelPath); len(errs) > 0 {
+				for _, e := range errs {
+					fmt.Fprintln(os.Stderr, e)
+				}
+				failed = true
 				continue
 			}
 			if err := addToProduct(product, outputPath(cluster, secretAppNamePrefix+appName), sapp); err != nil {
@@ -175,7 +186,7 @@ func main() {
 		}
 	}
 
-	fmt.Fprintf(os.Stderr, "%d configs %d intents %d app quarantined  %d legacy_skipped %d apps build\n", len(configs), len(intents), len(quarantined), legacy, len(product))
+	fmt.Fprintf(os.Stderr, "%d configs; %d intents; %d configs broken; %d legacy apps skipped; %d apps build;\n", len(configs), len(intents), len(brokenConfigs), legacy, len(product))
 	if failed {
 		os.Exit(1)
 	}
