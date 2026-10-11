@@ -69,7 +69,7 @@ func TestCheckCollisions(t *testing.T) {
 				},
 			},
 			wantErr:     true,
-			errContains: "c1/my-service.yaml: claimed by apps/first/config-dev.yaml and apps/second/config-dev.yaml",
+			errContains: `c1/my-service.yaml: claimed by "apps/first/config-dev.yaml" and "apps/second/config-dev.yaml"`,
 		},
 	}
 

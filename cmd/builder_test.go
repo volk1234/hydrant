@@ -291,10 +291,10 @@ func TestCheckLabelValues(t *testing.T) {
 		if len(errs) != 2 {
 			t.Fatalf("expected 2 errors, got %d: %v", len(errs), errs)
 		}
-		if !strings.Contains(errs[0].Error(), "label a:") {
+		if !strings.Contains(errs[0].Error(), `label "a":`) {
 			t.Errorf("first error should be about label a, got: %q", errs[0].Error())
 		}
-		if !strings.Contains(errs[1].Error(), "label b:") {
+		if !strings.Contains(errs[1].Error(), `label "b":`) {
 			t.Errorf("second error should be about label b, got: %q", errs[1].Error())
 		}
 	})

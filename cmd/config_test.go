@@ -61,14 +61,14 @@ func TestValidateConfig(t *testing.T) {
 				c.App.Name = "MyService"
 			},
 			wantErr:     true,
-			errContains: "app.name must conform to RFC-1123",
+			errContains: "not an RFC-1123 name",
 		},
 		"invalid app name with underscore": {
 			modify: func(c *Config) {
 				c.App.Name = "my_service"
 			},
 			wantErr:     true,
-			errContains: "app.name must conform to RFC-1123",
+			errContains: "not an RFC-1123 name",
 		},
 		"missing destination namespace": {
 			modify: func(c *Config) {

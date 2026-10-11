@@ -26,7 +26,7 @@ func clusterTokens(c Cluster, prefix string) (map[string]string, error) {
 		}
 		token := tokenName(k, prefix)
 		if _, exist := tokens[token]; exist {
-			return nil, fmt.Errorf(" cluster %q: label %s: token %s is already defined", c.Name, k, token)
+			return nil, fmt.Errorf("cluster %q: label %q: token %q is already defined", c.Name, k, token)
 		}
 		tokens[token] = v
 	}
@@ -36,7 +36,7 @@ func clusterTokens(c Cluster, prefix string) (map[string]string, error) {
 		}
 		token := tokenName(k, prefix)
 		if _, exist := tokens[token]; exist {
-			return nil, fmt.Errorf(" cluster %q: annotation %s: token %s is already defined", c.Name, k, token)
+			return nil, fmt.Errorf("cluster %q: annotation %q: token %q is already defined", c.Name, k, token)
 		}
 		tokens[token] = v
 	}
@@ -59,7 +59,7 @@ func substituteTokens(text string, c Cluster, prefix string) (string, error) {
 	for _, t := range found {
 		v, ok := tokens[t]
 		if !ok || v == "" {
-			errs = append(errs, fmt.Errorf("cluster %q has no value for token %s", c.Name, t))
+			errs = append(errs, fmt.Errorf("cluster %q: no value for token %q", c.Name, t))
 			continue
 		}
 		pairs = append(pairs, t, v)
