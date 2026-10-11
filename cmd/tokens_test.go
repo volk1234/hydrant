@@ -44,7 +44,7 @@ func TestClusterTokens(t *testing.T) {
 				},
 			},
 			wantErr:     true,
-			errContains: `token "[ENV]" is already defined`,
+			errContains: `defined by label`,
 		},
 		"collision between case-insensitive label keys": {
 			cluster: Cluster{
@@ -55,7 +55,45 @@ func TestClusterTokens(t *testing.T) {
 				},
 			},
 			wantErr:     true,
-			errContains: `token "[TIER]" is already defined`,
+			errContains: `defined by label`,
+		},
+		"tokens with hyphen and dot": {
+			cluster: Cluster{
+				Name: "cluster-c-1",
+				Labels: map[string]string{
+					"hydrant.sh/aws-region":  "eu-west-1",
+					"hydrant.sh/k8s.version": "1.28.2",
+				},
+			},
+			wantTokens: map[string]string{
+				"[AWS-REGION]":  "eu-west-1",
+				"[K8S.VERSION]": "1.28.2",
+			},
+			wantErr: false,
+		},
+		"aws-region and aws_region without collision": {
+			cluster: Cluster{
+				Name: "cluster-c-1",
+				Labels: map[string]string{
+					"hydrant.sh/aws-region": "hyphen-val",
+					"hydrant.sh/aws_region": "underscore-val",
+				},
+			},
+			wantTokens: map[string]string{
+				"[AWS-REGION]": "hyphen-val",
+				"[AWS_REGION]": "underscore-val",
+			},
+			wantErr: false,
+		},
+		"collision with cluster_name": {
+			cluster: Cluster{
+				Name: "cluster-c-1",
+				Labels: map[string]string{
+					"hydrant.sh/cluster_name": "custom",
+				},
+			},
+			wantErr:     true,
+			errContains: `defined by cluster name and label "hydrant.sh/cluster_name"`,
 		},
 	}
 
@@ -94,8 +132,10 @@ func TestSubstituteTokens(t *testing.T) {
 	cluster := Cluster{
 		Name: "prod-eu",
 		Labels: map[string]string{
-			"hydrant.sh/region": "eu-west-1",
-			"hydrant.sh/stage":  "production",
+			"hydrant.sh/region":      "eu-west-1",
+			"hydrant.sh/stage":       "production",
+			"hydrant.sh/aws-region":  "eu-west-1",
+			"hydrant.sh/k8s.version": "1.28.2",
 		},
 	}
 
@@ -108,6 +148,11 @@ func TestSubstituteTokens(t *testing.T) {
 		"successful substitution": {
 			input:      "cluster: [CLUSTER_NAME]\nregion: [REGION]\nenv: [STAGE]\n",
 			wantOutput: "cluster: prod-eu\nregion: eu-west-1\nenv: production\n",
+			wantErr:    false,
+		},
+		"tokens with hyphen and dot substituted": {
+			input:      "aws: [AWS-REGION]\nk8s: [K8S.VERSION]\n",
+			wantOutput: "aws: eu-west-1\nk8s: 1.28.2\n",
 			wantErr:    false,
 		},
 		"repeated token is substituted in all positions": {
