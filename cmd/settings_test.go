@@ -34,7 +34,7 @@ func TestCheckRepoPath(t *testing.T) {
 		"parent traversal forbidden": {
 			input:       "apps/../clusters",
 			wantErr:     true,
-			errContains: "must not contain ..",
+			errContains: `must not contain ".."`,
 		},
 		"trailing slash not in normal form": {
 			input:       "apps/",

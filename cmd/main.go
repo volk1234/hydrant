@@ -58,7 +58,7 @@ func main() {
 	}
 	clustersToRender := filterByPartition(clusters, *partitionLabel)
 	if len(clustersToRender) == 0 {
-		fmt.Fprintf(os.Stderr, "no clusters match partition label %q\n", *partitionLabel)
+		fmt.Fprintf(os.Stderr, "-partition-label %q: no clusters match\n", *partitionLabel)
 		os.Exit(1)
 	}
 	fmt.Fprintf(os.Stderr, "%d clusters, %d to render\n", len(clusters), len(clustersToRender))
@@ -83,13 +83,13 @@ func main() {
 		os.Exit(1)
 	}
 	for _, w := range stray {
-		fmt.Fprintln(os.Stderr, w)
+		fmt.Fprintln(os.Stderr, "warning:", w)
 	}
 	if len(cfgErrs) > 0 {
 		failed = true
 	}
 	if len(configs) == 0 && len(cfgErrs) == 0 {
-		fmt.Fprintf(os.Stderr, "%s: no 'config-%s.yaml' files found\n", settings.Apps, *env)
+		fmt.Fprintf(os.Stderr, "%s: no %q files found\n", settings.Apps, "config-"+*env+".yaml")
 		os.Exit(1)
 	}
 
@@ -105,11 +105,11 @@ func main() {
 			fmt.Fprintln(os.Stderr, e)
 		}
 		for _, w := range warns {
-			fmt.Fprintln(os.Stderr, w)
+			fmt.Fprintln(os.Stderr, "warning:", w)
 		}
 		secrets, warn := cf.SecretsEnabled()
 		if warn != "" {
-			fmt.Fprintln(os.Stderr, warn)
+			fmt.Fprintln(os.Stderr, "warning:", warn)
 		}
 
 		for _, t := range targets {
@@ -186,7 +186,7 @@ func main() {
 		}
 	}
 
-	fmt.Fprintf(os.Stderr, "%d configs; %d intents; %d configs broken; %d legacy apps skipped; %d apps build;\n", len(configs), len(intents), len(brokenConfigs), legacy, len(product))
+	fmt.Fprintf(os.Stderr, "%d configs, %d intents, %d configs broken, %d legacy apps skipped, %d objects built\n", len(configs), len(intents), len(brokenConfigs), legacy, len(product))
 	if failed {
 		os.Exit(1)
 	}
@@ -196,7 +196,7 @@ func main() {
 		os.Exit(1)
 	}
 	if err = writeProduct(*out, *env, product); err != nil {
-		fmt.Fprintln(os.Stderr, "write files on disk: ", err)
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 	fmt.Fprintf(os.Stderr, "rendered %d file(s)\n", len(product))

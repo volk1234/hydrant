@@ -52,7 +52,7 @@ func loadSettings(repo string) (Settings, []error) {
 
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return Settings{}, append(errs, fmt.Errorf("hydrant.yaml: cannot read config file(check -repo parameter): %w", err))
+		return Settings{}, append(errs, fmt.Errorf("hydrant.yaml: read file (is -repo the repository root?): %w", err))
 	}
 	s, err := parseSettings(data)
 	if err != nil {
@@ -71,7 +71,7 @@ func parseSettings(data []byte) (Settings, error) {
 	dec.KnownFields(true)
 	err := dec.Decode(&s)
 	if err != nil {
-		return Settings{}, fmt.Errorf("'hydrant.yaml': %w", err)
+		return Settings{}, fmt.Errorf("hydrant.yaml: %w", err)
 	}
 	return s, nil
 }
@@ -88,7 +88,7 @@ func checkRepoPath(key, val string) []error {
 		errs = append(errs, fmt.Errorf("hydrant.yaml: %s %q: use / as separator, not \\", key, val))
 	}
 	if slices.Contains(strings.Split(val, "/"), "..") {
-		errs = append(errs, fmt.Errorf("hydrant.yaml: %s %q: must not contain ..", key, val))
+		errs = append(errs, fmt.Errorf("hydrant.yaml: %s %q: must not contain \"..\"", key, val))
 	}
 	if clean := path.Clean(val); clean != val {
 		errs = append(errs, fmt.Errorf("hydrant.yaml: %s %q: not in normal form, use %q", key, val, clean))

@@ -38,13 +38,13 @@ func loadConfigs(repo, env, appsDir string) ([]ConfigFile, []error, error) {
 func loadOneConfig(repo, fullPath string) (ConfigFile, []error) {
 	relPath, err := filepath.Rel(repo, fullPath)
 	if err != nil {
-		return ConfigFile{}, []error{fmt.Errorf("%s: cannot compute path relative to repository root: %w", fullPath, err)}
+		return ConfigFile{}, []error{fmt.Errorf("%s: compute path relative to repository root: %w", fullPath, err)}
 	}
 	relPath = filepath.ToSlash(relPath)
 
 	data, err := os.ReadFile(fullPath)
 	if err != nil {
-		return ConfigFile{}, []error{fmt.Errorf("%s: cannot read file: %w", relPath, err)}
+		return ConfigFile{}, []error{fmt.Errorf("%s: read file: %w", relPath, err)}
 	}
 	cfg, err := parseConfig(data, relPath)
 	if err != nil {
@@ -77,7 +77,7 @@ func findStrayConfigs(repo string, envs []string, appsDir string) ([]string, err
 		if !slices.Contains(envs, name) {
 			relPath, err := filepath.Rel(repo, p)
 			if err != nil {
-				return fmt.Errorf("%s: cannot compute path relative to repository root: %w", repo, err)
+				return fmt.Errorf("%s: compute path relative to repository root: %w", repo, err)
 			}
 			stray = append(stray, fmt.Sprintf("%s: environment %q has no cluster directory; file is ignored", filepath.ToSlash(relPath), name))
 

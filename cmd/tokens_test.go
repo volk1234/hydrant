@@ -44,7 +44,7 @@ func TestClusterTokens(t *testing.T) {
 				},
 			},
 			wantErr:     true,
-			errContains: "token [ENV] is already defined",
+			errContains: `token "[ENV]" is already defined`,
 		},
 		"collision between case-insensitive label keys": {
 			cluster: Cluster{
@@ -55,7 +55,7 @@ func TestClusterTokens(t *testing.T) {
 				},
 			},
 			wantErr:     true,
-			errContains: "token [TIER] is already defined",
+			errContains: `token "[TIER]" is already defined`,
 		},
 	}
 
@@ -118,7 +118,7 @@ func TestSubstituteTokens(t *testing.T) {
 		"missing token fails with error": {
 			input:       "db_url: postgres://[DB_HOST]:5432",
 			wantErr:     true,
-			errContains: "has no value for token [DB_HOST]",
+			errContains: `no value for token "[DB_HOST]"`,
 		},
 		"empty token value in cluster treated as missing": {
 			input:      "cluster: [CLUSTER_NAME]\nval: [STAGE]",

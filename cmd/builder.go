@@ -128,7 +128,7 @@ func checkLabelValues(app Application, relPath string) []error {
 	for _, k := range keys {
 		v := app.Metadata.Labels[k]
 		if len(v) > maxLabelValueLen {
-			errs = append(errs, fmt.Errorf("%s: object %q: label %s: value is %d characters, limit is 63", relPath, app.Metadata.Name, k, len(v)))
+			errs = append(errs, fmt.Errorf("%s: object %q: label %q: value is %d characters, limit is %d", relPath, app.Metadata.Name, k, len(v), maxLabelValueLen))
 		}
 	}
 	return errs

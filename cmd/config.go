@@ -103,7 +103,7 @@ func validateConfig(cfg Config, relPath string) []error {
 	if cfg.App.Name == "" {
 		errs = append(errs, fmt.Errorf("%s: app.name is required", relPath))
 	} else if !checkRfc1123(cfg.App.Name) {
-		errs = append(errs, fmt.Errorf("%s: app.name must conform to RFC-1123", relPath))
+		errs = append(errs, fmt.Errorf("%s: app.name %q: not an RFC-1123 name", relPath, cfg.App.Name))
 	}
 
 	required := []struct{ val, key string }{
@@ -138,7 +138,7 @@ func parseFlexBool(raw any, relPath string) (bool, string) {
 			return false, ""
 		}
 	}
-	return false, fmt.Sprintf("%s: externalSecretsEnabled has unrecognized value %v, treated as false", relPath, raw)
+	return false, fmt.Sprintf("%s: externalSecretsEnabled %v: unrecognized value, treated as false", relPath, raw)
 }
 
 func (cf ConfigFile) SecretsEnabled() (bool, string) {

@@ -83,12 +83,12 @@ func loadClusters(repo, env, clustersDir string) (map[string]Cluster, error) {
 	for _, f := range files {
 		relPath, err := filepath.Rel(repo, f)
 		if err != nil {
-			return nil, fmt.Errorf("%s: cannot compute path relative to repository root: %w", f, err)
+			return nil, fmt.Errorf("%s: compute path relative to repository root: %w", f, err)
 		}
 		relPath = filepath.ToSlash(relPath)
 		data, err := os.ReadFile(f)
 		if err != nil {
-			return nil, fmt.Errorf("%s: cannot read file: %w", relPath, err)
+			return nil, fmt.Errorf("%s: read file: %w", relPath, err)
 		}
 
 		c, err := parseClusterSecret(data, relPath)
@@ -145,14 +145,14 @@ func parseClusterSecret(data []byte, relPath string) (Cluster, error) {
 		}
 
 		if strings.Contains(t.Data.Name, "{{") || hasTemplate(t.Metadata.Labels) || hasTemplate(t.Metadata.Annotations) {
-			return Cluster{}, fmt.Errorf("%s: ExternalSecret: name, labels and annotations must be plain values: hydrant cannot read values the operator fills in ({{ }})", relPath)
+			return Cluster{}, fmt.Errorf("%s: ExternalSecret: name, labels and annotations must be plain values: values the operator fills in ({{ }}) are unknown to hydrant", relPath)
 		}
 
 		name, meta = t.Data.Name, t.Metadata
 		nameField = "spec.target.template.data.name"
 
 	default:
-		return Cluster{}, fmt.Errorf("%s: not a cluster secret: expected kinds: Secret or ExternalSecret but got: %q", relPath, head.Kind)
+		return Cluster{}, fmt.Errorf("%s: kind %q: expected Secret or ExternalSecret", relPath, head.Kind)
 	}
 
 	if meta.Labels["argocd.argoproj.io/secret-type"] != "cluster" {
@@ -161,7 +161,7 @@ func parseClusterSecret(data []byte, relPath string) (Cluster, error) {
 	if name == "" {
 		return Cluster{}, fmt.Errorf("%s: %s is empty or missing", relPath, nameField)
 	} else if !checkRfc1123(name) {
-		return Cluster{}, fmt.Errorf("%s: %s must conform to RFC-1123", relPath, nameField)
+		return Cluster{}, fmt.Errorf("%s: %s %q: not an RFC-1123 name", relPath, nameField, name)
 	}
 
 	c := Cluster{

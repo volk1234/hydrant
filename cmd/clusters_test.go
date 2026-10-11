@@ -39,7 +39,7 @@ stringData:
   name: prod-eu-1
 `,
 			wantErr:     true,
-			errContains: "expected kinds: Secret or ExternalSecret",
+			errContains: `kind "ConfigMap": expected Secret or ExternalSecret`,
 		},
 		"valid external secret": {
 			data: `
@@ -105,7 +105,7 @@ spec:
         name: Prod_ESO_Cluster
 `,
 			wantErr:     true,
-			errContains: "spec.target.template.data.name must conform to RFC-1123",
+			errContains: `spec.target.template.data.name "Prod_ESO_Cluster": not an RFC-1123 name`,
 		},
 		"external secret templateFrom is rejected": {
 			data: `
@@ -138,7 +138,7 @@ spec:
         name: "{{ .clusterName }}"
 `,
 			wantErr:     true,
-			errContains: "name, labels and annotations must be plain values: hydrant cannot read values the operator fills in ({{ }})",
+			errContains: "name, labels and annotations must be plain values: values the operator fills in ({{ }}) are unknown to hydrant",
 		},
 		"external secret with template in label value is rejected": {
 			data: `
@@ -154,7 +154,7 @@ spec:
         name: prod-cluster
 `,
 			wantErr:     true,
-			errContains: "name, labels and annotations must be plain values: hydrant cannot read values the operator fills in ({{ }})",
+			errContains: "name, labels and annotations must be plain values: values the operator fills in ({{ }}) are unknown to hydrant",
 		},
 		"external secret with template in label key is rejected": {
 			data: `
@@ -170,7 +170,7 @@ spec:
         name: prod-cluster
 `,
 			wantErr:     true,
-			errContains: "name, labels and annotations must be plain values: hydrant cannot read values the operator fills in ({{ }})",
+			errContains: "name, labels and annotations must be plain values: values the operator fills in ({{ }}) are unknown to hydrant",
 		},
 		"external secret with template in annotation is rejected": {
 			data: `
@@ -187,7 +187,7 @@ spec:
         name: prod-cluster
 `,
 			wantErr:     true,
-			errContains: "name, labels and annotations must be plain values: hydrant cannot read values the operator fills in ({{ }})",
+			errContains: "name, labels and annotations must be plain values: values the operator fills in ({{ }}) are unknown to hydrant",
 		},
 		"external secret with secret-type label only on metadata.labels rejected with hint": {
 			data: `
@@ -241,7 +241,7 @@ stringData:
   name: Prod_Cluster_1
 `,
 			wantErr:     true,
-			errContains: "stringData.name must conform to RFC-1123",
+			errContains: `stringData.name "Prod_Cluster_1": not an RFC-1123 name`,
 		},
 		"malformed yaml": {
 			data:        `:::not valid yaml`,

@@ -13,7 +13,7 @@ func checkCollisions(intents []Intent) []error {
 	for _, it := range intents {
 		key := it.Target.Cluster.Name + "/" + it.Config.Config.App.Name
 		if prev, ok := owner[key]; ok {
-			errs = append(errs, fmt.Errorf("%s/%s.yaml: claimed by %s and %s", it.Target.Cluster.Name, it.Config.Config.App.Name, prev, it.Config.RelPath))
+			errs = append(errs, fmt.Errorf("%s/%s.yaml: claimed by %q and %q", it.Target.Cluster.Name, it.Config.Config.App.Name, prev, it.Config.RelPath))
 			continue
 		}
 		owner[key] = it.Config.RelPath
@@ -71,12 +71,12 @@ func checkOutDir(repo, out, appsDir, clustersDir string) error {
 		return fmt.Errorf("-out: %w", err)
 	}
 	if within(repo, out) {
-		return fmt.Errorf("-out %s is the checkout itself or above it", out)
+		return fmt.Errorf("-out %q: is the checkout itself or above it", out)
 	}
 	for _, dir := range []string{appsDir, clustersDir} {
 		d := filepath.Join(repo, dir)
 		if within(out, d) || within(d, out) {
-			return fmt.Errorf("-out %s overlaps input directory %s", out, d)
+			return fmt.Errorf("-out %q: overlaps input directory %q", out, d)
 		}
 	}
 
@@ -115,7 +115,7 @@ func writeProduct(out, env string, product map[string][]byte) error {
 	}
 	if err := os.Rename(dir, targetDir); err != nil {
 		_ = os.Rename(backupDir, targetDir)
-		return fmt.Errorf("install new tree, previous tree may be in %s: %w", backupDir, err)
+		return fmt.Errorf("install new tree, previous tree may be in %q: %w", backupDir, err)
 	}
 	_ = os.RemoveAll(backupDir)
 
