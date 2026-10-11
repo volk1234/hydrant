@@ -3,12 +3,13 @@ package main
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"regexp"
 	"slices"
 	"strings"
 )
 
-var tokenRe = regexp.MustCompile(`\[[A-Z0-9_]+\]`)
+var tokenRe = regexp.MustCompile(`\[[A-Z0-9_.-]+\]`)
 
 func tokenName(key string, prefix string) string {
 	t := strings.ToUpper(strings.TrimPrefix(key, prefix))
@@ -18,27 +19,32 @@ func tokenName(key string, prefix string) string {
 
 func clusterTokens(c Cluster, prefix string) (map[string]string, error) {
 	tokens := make(map[string]string)
+	source := make(map[string]string)
 
 	tokens["[CLUSTER_NAME]"] = c.Name
-	for k, v := range c.Labels {
+	source["[CLUSTER_NAME]"] = "cluster name"
+
+	for _, k := range slices.Sorted(maps.Keys(c.Labels)) {
 		if !strings.HasPrefix(k, prefix) {
 			continue
 		}
 		token := tokenName(k, prefix)
 		if _, exist := tokens[token]; exist {
-			return nil, fmt.Errorf("cluster %q: label %q: token %q is already defined", c.Name, k, token)
+			return nil, fmt.Errorf("cluster %q: token %q: defined by %s and label %q", c.Name, token, source[token], k)
 		}
-		tokens[token] = v
+		tokens[token] = c.Labels[k]
+		source[token] = fmt.Sprintf("label %q", k)
 	}
-	for k, v := range c.Annotations {
+	for _, k := range slices.Sorted(maps.Keys(c.Annotations)) {
 		if !strings.HasPrefix(k, prefix) {
 			continue
 		}
 		token := tokenName(k, prefix)
 		if _, exist := tokens[token]; exist {
-			return nil, fmt.Errorf("cluster %q: annotation %q: token %q is already defined", c.Name, k, token)
+			return nil, fmt.Errorf("cluster %q: token %q: defined by %s and annotation %q", c.Name, token, source[token], k)
 		}
-		tokens[token] = v
+		tokens[token] = c.Annotations[k]
+		source[token] = fmt.Sprintf("annotation %q", k)
 	}
 
 	return tokens, nil

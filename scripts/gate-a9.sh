@@ -54,6 +54,10 @@ for dir in "${apps[@]}"; do
       sedexpr="s/\\[CLUSTER_NAME\\]/$cluster/g;"
       while IFS=$'\t' read -r key val; do
         tok=$(echo "${key#"$prefix"}" | tr '[:lower:]' '[:upper:]')
+        # Token names may contain "." (R8.1): literal in the pattern, not "any char".
+        tok=${tok//./\\.}
+        # In the replacement "&", "\\" and the "|" delimiter are special.
+        val=$(printf '%s' "$val" | sed -e 's/[\\&|]/\\&/g')
         sedexpr+="s|\\[$tok\\]|$val|g;"
       done < <(PREFIX="$prefix" yq -r "($meta.labels // {}) + ($meta.annotations // {}) | to_entries[] | select(.key | test(\"^\" + strenv(PREFIX))) | [.key, .value] | @tsv" "$secret")
       printf '%s\n' "$inline" | sed "$sedexpr" > "$tmp/inline.yaml"
