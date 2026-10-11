@@ -314,4 +314,3 @@ func TestValuesObject(t *testing.T) {
 		t.Errorf("MarshalYAML mismatch: %v, %v", marshaled, err)
 	}
 }
-

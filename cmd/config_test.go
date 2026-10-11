@@ -108,9 +108,9 @@ func TestValidateConfig(t *testing.T) {
 
 func TestParseFlexBool(t *testing.T) {
 	tests := map[string]struct {
-		input       any
-		wantVal     bool
-		wantWarn    bool
+		input        any
+		wantVal      bool
+		wantWarn     bool
 		warnContains string
 	}{
 		"bool true": {
@@ -343,4 +343,3 @@ func TestSecretsEnabled(t *testing.T) {
 		t.Errorf("SecretsEnabled = %v, warn = %q; want true, empty warn", enabled, warn)
 	}
 }
-

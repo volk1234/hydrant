@@ -42,6 +42,10 @@ func (s Settings) ProfileLabel() string {
 	return s.LabelPrefix + "profile-"
 }
 
+func (s Settings) SourceConfigAnnotation() string {
+	return s.LabelPrefix + "source-config"
+}
+
 func loadSettings(repo string) (Settings, []error) {
 	var errs []error
 	path := filepath.Join(repo, settingsFileName)

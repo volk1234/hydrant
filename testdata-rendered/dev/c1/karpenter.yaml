@@ -5,6 +5,7 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "1"
+    hydrant.sh/source-config: cluster-init/apps/karpenter/config-dev.yaml
   labels:
     app.kubernetes.io/name: karpenter-c1
     env: dev

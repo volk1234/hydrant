@@ -231,4 +231,3 @@ func TestFilterIntents(t *testing.T) {
 		}
 	}
 }
-

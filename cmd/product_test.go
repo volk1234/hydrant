@@ -201,4 +201,3 @@ func TestAddToProductAndWriteProduct(t *testing.T) {
 		t.Fatalf("repeated writeProduct failed: %v", err)
 	}
 }
-

@@ -121,8 +121,8 @@ func TestSubstituteTokens(t *testing.T) {
 			errContains: "has no value for token [DB_HOST]",
 		},
 		"empty token value in cluster treated as missing": {
-			input: "cluster: [CLUSTER_NAME]\nval: [STAGE]",
-			wantErr: false,
+			input:      "cluster: [CLUSTER_NAME]\nval: [STAGE]",
+			wantErr:    false,
 			wantOutput: "cluster: prod-eu\nval: production",
 		},
 		"no tokens in string passes through untouched": {
