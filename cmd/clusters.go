@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -11,15 +10,30 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-type clusterSecret struct {
-	Kind     string `yaml:"kind"`
-	Metadata struct {
-		Labels      map[string]string `yaml:"labels"`
-		Annotations map[string]string `yaml:"annotations"`
-	} `yaml:"metadata"`
+type objectMeta struct {
+	Labels      map[string]string `yaml:"labels"`
+	Annotations map[string]string `yaml:"annotations"`
+}
+type secretFile struct {
+	Metadata   objectMeta `yaml:"metadata"`
 	StringData struct {
 		Name string `yaml:"name"`
 	} `yaml:"stringData"`
+}
+
+type esoSecretFile struct {
+	Metadata objectMeta `yaml:"metadata"`
+	Spec     struct {
+		Target struct {
+			Template struct {
+				Metadata     objectMeta `yaml:"metadata"`
+				TemplateFrom []any      `yaml:"templateFrom"`
+				Data         struct {
+					Name string `yaml:"name"`
+				} `yaml:"data"`
+			} `yaml:"template"`
+		} `yaml:"target"`
+	} `yaml:"spec"`
 }
 
 type Cluster struct {
@@ -90,29 +104,70 @@ func loadClusters(repo, env, clustersDir string) (map[string]Cluster, error) {
 	return clusters, nil
 }
 
+func hasTemplate(m map[string]string) bool {
+	for k, v := range m {
+		if strings.Contains(k, "{{") || strings.Contains(v, "{{") {
+			return true
+		}
+	}
+	return false
+}
+
 func parseClusterSecret(data []byte, relPath string) (Cluster, error) {
-	var sec clusterSecret
-	dec := yaml.NewDecoder(bytes.NewReader(data))
-	err := dec.Decode(&sec)
-	if err != nil {
+	var name string
+	var meta objectMeta
+	var head struct {
+		Kind string `yaml:"kind"`
+	}
+	nameField := "stringData.name"
+	if err := yaml.Unmarshal(data, &head); err != nil {
 		return Cluster{}, fmt.Errorf("%s: %w", relPath, err)
 	}
-	if sec.Kind != "Secret" {
-		return Cluster{}, fmt.Errorf("%s: not a cluster secret: expected kind: Secret", relPath)
+
+	switch head.Kind {
+	case "Secret":
+		var s secretFile
+		if err := yaml.Unmarshal(data, &s); err != nil {
+			return Cluster{}, fmt.Errorf("%s: %w", relPath, err)
+		}
+		name, meta = s.StringData.Name, s.Metadata
+	case "ExternalSecret":
+		var es esoSecretFile
+		if err := yaml.Unmarshal(data, &es); err != nil {
+			return Cluster{}, fmt.Errorf("%s: %w", relPath, err)
+		}
+		t := es.Spec.Target.Template
+		if len(t.TemplateFrom) > 0 {
+			return Cluster{}, fmt.Errorf("%s: ExternalSecret: spec.target.template.templateFrom is not supported", relPath)
+		}
+		if es.Metadata.Labels["argocd.argoproj.io/secret-type"] == "cluster" && t.Metadata.Labels["argocd.argoproj.io/secret-type"] != "cluster" {
+			return Cluster{}, fmt.Errorf("%s: ExternalSecret: label argocd.argoproj.io/secret-type is in metadata.labels; move it to spec.target.template.metadata.labels", relPath)
+		}
+
+		if strings.Contains(t.Data.Name, "{{") || hasTemplate(t.Metadata.Labels) || hasTemplate(t.Metadata.Annotations) {
+			return Cluster{}, fmt.Errorf("%s: ExternalSecret: name, labels and annotations must be plain values: hydrant cannot read values the operator fills in ({{ }})", relPath)
+		}
+
+		name, meta = t.Data.Name, t.Metadata
+		nameField = "spec.target.template.data.name"
+
+	default:
+		return Cluster{}, fmt.Errorf("%s: not a cluster secret: expected kinds: Secret or ExternalSecret but got: %q", relPath, head.Kind)
 	}
-	if sec.Metadata.Labels["argocd.argoproj.io/secret-type"] != "cluster" {
+
+	if meta.Labels["argocd.argoproj.io/secret-type"] != "cluster" {
 		return Cluster{}, fmt.Errorf("%s: not a cluster secret: expected label argocd.argoproj.io/secret-type=cluster", relPath)
 	}
-	if sec.StringData.Name == "" {
-		return Cluster{}, fmt.Errorf("%s: stringData.name is empty or missing", relPath)
-	} else if !checkRfc1123(sec.StringData.Name) {
-		return Cluster{}, fmt.Errorf("%s: stringData.name must conform to RFC-1123", relPath)
+	if name == "" {
+		return Cluster{}, fmt.Errorf("%s: %s is empty or missing", relPath, nameField)
+	} else if !checkRfc1123(name) {
+		return Cluster{}, fmt.Errorf("%s: %s must conform to RFC-1123", relPath, nameField)
 	}
 
 	c := Cluster{
-		Name:        sec.StringData.Name,
-		Labels:      sec.Metadata.Labels,
-		Annotations: sec.Metadata.Annotations,
+		Name:        name,
+		Labels:      meta.Labels,
+		Annotations: meta.Annotations,
 	}
 	return c, nil
 }

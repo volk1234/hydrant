@@ -28,6 +28,9 @@ type HelmChart struct {
 	RepoURL     string        `yaml:"repoURL"`
 	ReleaseName string        `yaml:"release_name"`
 	Default     ChartDefaults `yaml:"default"`
+	Upgrade     struct {
+		Auto bool `yaml:"auto"`
+	} `yaml:"upgrade"`
 }
 
 type ChartDefaults struct {
