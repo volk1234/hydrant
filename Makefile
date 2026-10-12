@@ -2,7 +2,7 @@
 
 OUT  ?= /tmp/rendered
 KUBECONFORM = go run github.com/yannh/kubeconform/cmd/kubeconform@v0.7.0
-SCHEMA = testdata/schemas/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json
+SCHEMA = schemas/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json
 
 .PHONY: test render check validate determinism gate compare require-repo
 
