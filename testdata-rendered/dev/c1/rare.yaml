@@ -1,0 +1,44 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rare-c1
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    hydrant.sh/source-config: cluster-init/apps/rare/config-dev.yaml
+  labels:
+    app.kubernetes.io/name: rare-c1
+    env: dev
+    parent-app: cluster-init-dev
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: public.ecr.aws/karpenter
+    chart: karpenter
+    targetRevision: 1.13.0
+    helm:
+      releaseName: rare-c1
+      skipSchemaValidation: true
+      valuesObject:
+        settings:
+          aws:
+            defaultInstanceProfile: eks_worker-c1
+          clusterName: c1
+          interruptionQueue: karpenter-c1
+  destination:
+    name: c1
+    namespace: platform-system
+  syncPolicy:
+    managedNamespaceMetadata:
+      labels:
+        elbv2.k8s.aws/pod-readiness-gate-inject: enabled
+    syncOptions:
+      - ServerSideApply=true
+      - CreateNamespace=true
+      - SkipDryRunOnMissingResource=true
+    automated:
+      enabled: true
+      selfHeal: true
+      prune: true

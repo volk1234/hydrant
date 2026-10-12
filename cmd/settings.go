@@ -93,6 +93,9 @@ func checkRepoPath(key, val string) []error {
 	if clean := path.Clean(val); clean != val {
 		errs = append(errs, fmt.Errorf("hydrant.yaml: %s %q: not in normal form, use %q", key, val, clean))
 	}
+	if root := path.Clean(val); root == "." {
+		errs = append(errs, fmt.Errorf("hydrant.yaml: %s %q: must be a directory inside the repository, not its root", key, val))
+	}
 	return errs
 }
 

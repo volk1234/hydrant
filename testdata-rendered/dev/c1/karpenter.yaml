@@ -24,6 +24,7 @@ spec:
         image:
           repository: nginx
           tag: "1.11"
+        metrics: "disabled"
         release: 2024-01-01
         resources:
           requests:

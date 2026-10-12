@@ -1,101 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
-
-func TestCheckCollisions(t *testing.T) {
-	tests := map[string]struct {
-		intents     []Intent
-		wantErr     bool
-		errContains string
-	}{
-		"no collision: distinct apps in same cluster": {
-			intents: []Intent{
-				{
-					Target: Target{Cluster: Cluster{Name: "c1"}},
-					Config: ConfigFile{
-						RelPath: "apps/app-a/config-dev.yaml",
-						Config:  Config{App: App{Name: "app-a"}},
-					},
-				},
-				{
-					Target: Target{Cluster: Cluster{Name: "c1"}},
-					Config: ConfigFile{
-						RelPath: "apps/app-b/config-dev.yaml",
-						Config:  Config{App: App{Name: "app-b"}},
-					},
-				},
-			},
-			wantErr: false,
-		},
-		"no collision: same app in distinct clusters": {
-			intents: []Intent{
-				{
-					Target: Target{Cluster: Cluster{Name: "c1"}},
-					Config: ConfigFile{
-						RelPath: "apps/app-a/config-dev.yaml",
-						Config:  Config{App: App{Name: "app-a"}},
-					},
-				},
-				{
-					Target: Target{Cluster: Cluster{Name: "c2"}},
-					Config: ConfigFile{
-						RelPath: "apps/app-a/config-dev.yaml",
-						Config:  Config{App: App{Name: "app-a"}},
-					},
-				},
-			},
-			wantErr: false,
-		},
-		"collision: two configs claim same cluster and app name": {
-			intents: []Intent{
-				{
-					Target: Target{Cluster: Cluster{Name: "c1"}},
-					Config: ConfigFile{
-						RelPath: "apps/first/config-dev.yaml",
-						Config:  Config{App: App{Name: "my-service"}},
-					},
-				},
-				{
-					Target: Target{Cluster: Cluster{Name: "c1"}},
-					Config: ConfigFile{
-						RelPath: "apps/second/config-dev.yaml",
-						Config:  Config{App: App{Name: "my-service"}},
-					},
-				},
-			},
-			wantErr:     true,
-			errContains: `c1/my-service.yaml: claimed by "apps/first/config-dev.yaml" and "apps/second/config-dev.yaml"`,
-		},
-	}
-
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			errs := checkCollisions(tc.intents)
-			if tc.wantErr {
-				if len(errs) == 0 {
-					t.Fatalf("expected error containing %q, got none", tc.errContains)
-				}
-				found := false
-				for _, err := range errs {
-					if strings.Contains(err.Error(), tc.errContains) {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Fatalf("expected error containing %q, got %v", tc.errContains, errs)
-				}
-			} else if len(errs) > 0 {
-				t.Fatalf("unexpected error: %v", errs)
-			}
-		})
-	}
-}
 
 func TestCheckOutDir(t *testing.T) {
 	tempDir := t.TempDir()
@@ -169,6 +80,7 @@ func TestOutputPath(t *testing.T) {
 
 func TestAddToProductAndWriteProduct(t *testing.T) {
 	product := make(map[string][]byte)
+	owners := make(map[string]string)
 	app := Application{
 		APIVersion: appAPIVersion,
 		Kind:       appKind,
@@ -176,11 +88,26 @@ func TestAddToProductAndWriteProduct(t *testing.T) {
 	}
 
 	path := outputPath("c1", "app1")
-	if err := addToProduct(product, path, app); err != nil {
+	relPath := "apps/app1/config-dev.yaml"
+	if err := addToProduct(product, owners, path, relPath, app); err != nil {
 		t.Fatalf("addToProduct failed: %v", err)
 	}
 	if len(product[path]) == 0 {
 		t.Fatalf("expected rendered bytes in product[%q]", path)
+	}
+	if owners[path] != relPath {
+		t.Errorf("owners[%q] = %q, want %q", path, owners[path], relPath)
+	}
+
+	// Verify collision detection: error must mention both claiming configs
+	otherRelPath := "apps/other/config-dev.yaml"
+	err := addToProduct(product, owners, path, otherRelPath, app)
+	if err == nil {
+		t.Fatalf("expected collision error in addToProduct, got nil")
+	}
+	wantErr := fmt.Sprintf("%s: claimed by %q and %q", path, relPath, otherRelPath)
+	if err.Error() != wantErr {
+		t.Errorf("addToProduct collision error = %q, want %q", err.Error(), wantErr)
 	}
 
 	// Write product to temp disk

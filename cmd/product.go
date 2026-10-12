@@ -7,30 +7,19 @@ import (
 	"strings"
 )
 
-func checkCollisions(intents []Intent) []error {
-	owner := make(map[string]string)
-	var errs []error
-	for _, it := range intents {
-		key := it.Target.Cluster.Name + "/" + it.Config.Config.App.Name
-		if prev, ok := owner[key]; ok {
-			errs = append(errs, fmt.Errorf("%s/%s.yaml: claimed by %q and %q", it.Target.Cluster.Name, it.Config.Config.App.Name, prev, it.Config.RelPath))
-			continue
-		}
-		owner[key] = it.Config.RelPath
-
-	}
-	return errs
-}
-
 func outputPath(cluster, file string) string {
 	return cluster + "/" + file + ".yaml"
 }
 
-func addToProduct(product map[string][]byte, path string, app Application) error {
+func addToProduct(product map[string][]byte, owners map[string]string, path string, relPath string, app Application) error {
+	if prev, ok := owners[path]; ok {
+		return fmt.Errorf("%s: claimed by %q and %q", path, prev, relPath)
+	}
 	doc, err := marshalYAML(app)
 	if err != nil {
 		return fmt.Errorf("%s: %w", path, err)
 	}
+	owners[path] = relPath
 	product[path] = doc
 	return nil
 }

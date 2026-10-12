@@ -1,0 +1,31 @@
+app:
+  name: rare
+  helmchart:
+    repoURL: public.ecr.aws/karpenter
+    name: karpenter
+    default:
+      targetRevision: 1.13.0
+      valuesRevision: HEAD
+  destination:
+    namespace: platform-system
+    clusters: {}
+    profile: "base"
+argocd:
+  namespace: argocd
+  server_side_apply: true
+  sync_wave: 1
+  cascade_delete: true
+  skip_dry_run: true
+  autosync:
+    enabled: true
+    selfheal: true
+    prune: true
+legacyEnabled: false
+externalSecretsEnabled: "TRUE"
+
+inline_values: |
+  settings:
+    clusterName: [CLUSTER_NAME]
+    interruptionQueue: karpenter-[CLUSTER_NAME]
+    aws:
+      defaultInstanceProfile: eks_worker-[CLUSTER_NAME]
