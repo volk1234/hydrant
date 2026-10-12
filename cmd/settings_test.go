@@ -46,6 +46,16 @@ func TestCheckRepoPath(t *testing.T) {
 			wantErr:     true,
 			errContains: "not in normal form",
 		},
+		"dot repository root forbidden": {
+			input:       ".",
+			wantErr:     true,
+			errContains: "must be a directory inside the repository, not its root",
+		},
+		"dot-slash repository root forbidden": {
+			input:       "./",
+			wantErr:     true,
+			errContains: "must be a directory inside the repository, not its root",
+		},
 	}
 
 	for name, tc := range tests {
@@ -240,10 +250,30 @@ func TestValidateSettings(t *testing.T) {
 			wantErr:     true,
 			errContains: "apps is required",
 		},
+		"apps cannot be repository root dot": {
+			modify:      func(s *Settings) { s.Apps = "." },
+			wantErr:     true,
+			errContains: `apps ".": must be a directory inside the repository, not its root`,
+		},
+		"apps cannot be repository root dot-slash": {
+			modify:      func(s *Settings) { s.Apps = "./" },
+			wantErr:     true,
+			errContains: `apps "./": must be a directory inside the repository, not its root`,
+		},
 		"missing clusters": {
 			modify:      func(s *Settings) { s.Clusters = "" },
 			wantErr:     true,
 			errContains: "clusters is required",
+		},
+		"clusters cannot be repository root dot": {
+			modify:      func(s *Settings) { s.Clusters = "." },
+			wantErr:     true,
+			errContains: `clusters ".": must be a directory inside the repository, not its root`,
+		},
+		"clusters cannot be repository root dot-slash": {
+			modify:      func(s *Settings) { s.Clusters = "./" },
+			wantErr:     true,
+			errContains: `clusters "./": must be a directory inside the repository, not its root`,
 		},
 		"apps and clusters cannot be the same directory": {
 			modify: func(s *Settings) {

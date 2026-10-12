@@ -6,3 +6,7 @@ resources:
     cpu: 1
 tolerations:
   - key: a
+
+metrics:
+  enabled: true
+  port: 9090

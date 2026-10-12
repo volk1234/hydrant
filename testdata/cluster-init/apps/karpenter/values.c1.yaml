@@ -5,3 +5,4 @@ tolerations:
   - key: b
 enabled: yes
 release: 2024-01-01
+metrics: "disabled"

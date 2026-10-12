@@ -23,6 +23,9 @@ spec:
         image:
           repository: nginx
           tag: "1.11"
+        metrics:
+          enabled: true
+          port: 9090
         resources: null
         script: |-
           line1

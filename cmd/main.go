@@ -118,12 +118,9 @@ func main() {
 	}
 	intents = filterIntents(intents, clustersToRender)
 	intents, legacy := filterLegacy(intents)
-	for _, e := range checkCollisions(intents) {
-		fmt.Fprintln(os.Stderr, e)
-		failed = true
-	}
 
 	product := make(map[string][]byte)
+	owners := make(map[string]string)
 
 	for _, it := range intents {
 		if brokenConfigs[it.Config.RelPath] {
@@ -158,7 +155,7 @@ func main() {
 		}
 		appName := it.Config.Config.App.Name
 		cluster := it.Target.Cluster.Name
-		if err := addToProduct(product, outputPath(cluster, appName), app); err != nil {
+		if err := addToProduct(product, owners, outputPath(cluster, appName), it.Config.RelPath, app); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			failed = true
 			continue
@@ -178,7 +175,7 @@ func main() {
 				failed = true
 				continue
 			}
-			if err := addToProduct(product, outputPath(cluster, secretAppNamePrefix+appName), sapp); err != nil {
+			if err := addToProduct(product, owners, outputPath(cluster, secretAppNamePrefix+appName), it.Config.RelPath, sapp); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				failed = true
 				continue
