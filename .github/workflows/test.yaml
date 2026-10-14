@@ -39,3 +39,12 @@ jobs:
 
       - name: Gate A9 on testdata
         run: make gate REPO=testdata
+
+      - name: Vulnerabilities
+        run: make vulncheck
+
+      - name: No network (R12.1)
+        run: make nonet
+
+      - name: Licenses
+        run: make licenses
