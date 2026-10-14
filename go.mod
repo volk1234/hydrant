@@ -1,4 +1,4 @@
-module hydrant
+module github.com/volk1234/hydrant
 
 go 1.26.5
 

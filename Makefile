@@ -11,11 +11,11 @@ require-repo:
 	@test -n "$(REPO)" || { echo "REPO is not set — pass REPO=/path/to/turing" >&2; exit 1; }
 
 test:
-	go vet ./cmd
-	go test -shuffle=on ./cmd
+	go vet ./...
+	go test -shuffle=on ./...
 
 render: require-repo
-	 for e in $(ENVS); do go run ./cmd -repo $(REPO) -env $$e -out $(OUT) || exit 1; done
+	 for e in $(ENVS); do go run ./cmd/hydrant -repo $(REPO) -env $$e -out $(OUT) || exit 1; done
 
 
 validate: render
@@ -23,18 +23,18 @@ validate: render
 
 determinism: require-repo
 	rm -rf $(OUT)-a $(OUT)-b
-	go run ./cmd -repo $(REPO) -env dev -out $(OUT)-a
-	go run ./cmd -repo $(REPO) -env dev -out $(OUT)-b
+	go run ./cmd/hydrant -repo $(REPO) -env dev -out $(OUT)-a
+	go run ./cmd/hydrant -repo $(REPO) -env dev -out $(OUT)-b
 	diff -r $(OUT)-a $(OUT)-b
 	@echo "determinism: OK"
 
 gate: require-repo
 	rm -rf $(OUT)
-	go run ./cmd -repo $(REPO) -env dev -out $(OUT)
+	go run ./cmd/hydrant -repo $(REPO) -env dev -out $(OUT)
 	scripts/gate-a9.sh $(REPO) dev $(OUT)
 
 compare:
 	rm -rf tmp/
-	go run ./cmd -repo testdata -env dev -out tmp/
+	go run ./cmd/hydrant -repo testdata -env dev -out tmp/
 	diff -r testdata-rendered/ tmp/
 	@echo "no diff!!!"
