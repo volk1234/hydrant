@@ -12,7 +12,7 @@ import (
 func TestGoldenRenderAgainstTestdata(t *testing.T) {
 	outDir := t.TempDir()
 
-	cmd := exec.Command("go", "run", ".", "-repo", "../testdata", "-env", "dev", "-out", outDir)
+	cmd := exec.Command("go", "run", ".", "-repo", "../../testdata", "-env", "dev", "-out", outDir)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
@@ -24,7 +24,7 @@ func TestGoldenRenderAgainstTestdata(t *testing.T) {
 		t.Errorf("stderr does not contain %q; got:\n%s", wantSummary, stderr.String())
 	}
 
-	expectedDir := filepath.Join("..", "testdata-rendered", "dev")
+	expectedDir := filepath.Join("..", "..", "testdata-rendered", "dev")
 	actualDir := filepath.Join(outDir, "dev")
 
 	// Verify all expected files exist and match exactly
@@ -90,7 +90,7 @@ func TestGoldenRenderAgainstTestdata(t *testing.T) {
 }
 
 func TestPositionalArgumentRejected(t *testing.T) {
-	cmd := exec.Command("go", "run", ".", "-repo", "../testdata", "-env", "dev", "-out", t.TempDir(), "unexpected-arg")
+	cmd := exec.Command("go", "run", ".", "-repo", "../../testdata", "-env", "dev", "-out", t.TempDir(), "unexpected-arg")
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	err := cmd.Run()
@@ -102,4 +102,19 @@ func TestPositionalArgumentRejected(t *testing.T) {
 		t.Errorf("stderr = %q, want it to contain %q", stderr.String(), wantMsg)
 	}
 }
+
+func TestVersionFlag(t *testing.T) {
+	cmd := exec.Command("go", "run", ".", "-version")
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("hydrant -version failed: %v\nstderr: %s", err, stderr.String())
+	}
+	want := "hydrant dev\n"
+	if stdout.String() != want {
+		t.Errorf("stdout = %q, want %q", stdout.String(), want)
+	}
+}
+
 

@@ -8,6 +8,7 @@ import (
 )
 
 var rfc1123 = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`)
+var version = "dev"
 
 func checkRfc1123(s string) bool {
 	return rfc1123.MatchString(s)
@@ -19,8 +20,13 @@ func main() {
 	env := flag.String("env", "", "environment name(dev, live, ...)")
 	project := flag.String("project", "default", "ArgoCD AppProject to target")
 	partitionLabel := flag.String("partition-label", "", "cluster label to filter rendering by")
+	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
 
+	if *showVersion {
+		fmt.Println("hydrant", version)
+		os.Exit(0)
+	}
 	if *repo == "" || *out == "" || *project == "" {
 		fmt.Fprintln(os.Stderr, "usage: hydrant -repo <path> -out <path> -env <name> ...")
 		os.Exit(2)
