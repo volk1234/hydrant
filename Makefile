@@ -1,8 +1,9 @@
 -include Makefile.local
 
 OUT  ?= /tmp/rendered
-KUBECONFORM = go run github.com/yannh/kubeconform/cmd/kubeconform@v0.7.0
+KUBECONFORM = go run github.com/yannh/kubeconform/cmd/kubeconform@v0.8.0
 SCHEMA = schemas/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json
+ENVS ?= dev live
 
 .PHONY: test render check validate determinism gate compare require-repo
 
@@ -14,8 +15,7 @@ test:
 	go test -shuffle=on ./cmd
 
 render: require-repo
-	go run ./cmd -repo $(REPO) -env dev -out $(OUT)
-	go run ./cmd -repo $(REPO) -env live -out $(OUT)
+	 for e in $(ENVS); do go run ./cmd -repo $(REPO) -env $$e -out $(OUT) || exit 1; done
 
 
 validate: render

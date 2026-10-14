@@ -138,7 +138,7 @@ func parseFlexBool(raw any, relPath string) (bool, string) {
 			return false, ""
 		}
 	}
-	return false, fmt.Sprintf("%s: externalSecretsEnabled %v: unrecognized value, treated as false", relPath, raw)
+	return false, fmt.Sprintf("%s: externalSecretsEnabled %q: unrecognized value, treated as false", relPath, fmt.Sprint(raw))
 }
 
 func (cf ConfigFile) SecretsEnabled() (bool, string) {

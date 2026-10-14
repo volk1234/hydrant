@@ -26,7 +26,7 @@ func main() {
 		os.Exit(2)
 	}
 	if flag.NArg() > 0 {
-		fmt.Fprintf(os.Stderr, "unexpected argument %q\n", flag.Arg(0))
+		fmt.Fprintf(os.Stderr, "argument %q: hydrant takes no positional arguments\n", flag.Arg(0))
 		os.Exit(2)
 	}
 	if !checkRfc1123(*env) {
@@ -92,6 +92,12 @@ func main() {
 		fmt.Fprintf(os.Stderr, "%s: no %q files found\n", settings.Apps, "config-"+*env+".yaml")
 		os.Exit(1)
 	}
+	var legacyCount int
+	for _, c := range configs {
+		if c.Config.LegacyEnabled == "true" {
+			legacyCount++
+		}
+	}
 
 	var intents []Intent
 	brokenConfigs := make(map[string]bool)
@@ -99,7 +105,6 @@ func main() {
 		targets, errs, warns := resolveTargets(cf, clusters, settings.ProfileLabel())
 		if len(errs) > 0 {
 			failed = true
-			brokenConfigs[cf.RelPath] = true
 		}
 		for _, e := range errs {
 			fmt.Fprintln(os.Stderr, e)
@@ -117,7 +122,7 @@ func main() {
 		}
 	}
 	intents = filterIntents(intents, clustersToRender)
-	intents, legacy := filterLegacy(intents)
+	intents = filterLegacy(intents)
 
 	product := make(map[string][]byte)
 	owners := make(map[string]string)
@@ -183,12 +188,12 @@ func main() {
 		}
 	}
 
-	fmt.Fprintf(os.Stderr, "%d configs, %d intents, %d configs broken, %d legacy apps skipped, %d objects built\n", len(configs), len(intents), len(brokenConfigs), legacy, len(product))
+	fmt.Fprintf(os.Stderr, "%d configs, %d intents, %d legacy apps skipped, %d objects built\n", len(configs), len(intents), legacyCount, len(product))
 	if failed {
 		os.Exit(1)
 	}
 
-	if len(product) == 0 && legacy < len(configs) {
+	if len(product) == 0 && legacyCount < len(configs) {
 		fmt.Fprintln(os.Stderr, "product is empty: check -repo, -env and -partition-label")
 		os.Exit(1)
 	}

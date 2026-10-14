@@ -147,13 +147,13 @@ func TestParseFlexBool(t *testing.T) {
 			input:        "yes",
 			wantVal:      false,
 			wantWarn:     true,
-			warnContains: "unrecognized value",
+			warnContains: `externalSecretsEnabled "yes": unrecognized value`,
 		},
 		"integer produces warning": {
 			input:        1,
 			wantVal:      false,
 			wantWarn:     true,
-			warnContains: "unrecognized value",
+			warnContains: `externalSecretsEnabled "1": unrecognized value`,
 		},
 	}
 

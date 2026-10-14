@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -12,6 +13,9 @@ import (
 
 func loadConfigs(repo, env, appsDir string) ([]ConfigFile, []error, error) {
 	root := filepath.Join(repo, appsDir)
+	if _, err := os.Stat(root); errors.Is(err, os.ErrNotExist) {
+		return nil, nil, fmt.Errorf("%s: directory not found", appsDir)
+	}
 	file := "config-" + env + ".yaml"
 	var configs []ConfigFile
 	var cfgErrs []error

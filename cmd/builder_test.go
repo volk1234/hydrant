@@ -275,6 +275,9 @@ func TestCheckLabelValues(t *testing.T) {
 		if !strings.Contains(msg, "64") {
 			t.Errorf("error %q should contain '64'", msg)
 		}
+		if !strings.Contains(msg, "limit 63") {
+			t.Errorf("error %q should contain 'limit 63'", msg)
+		}
 	})
 
 	t.Run("two_long_labels_sorted", func(t *testing.T) {

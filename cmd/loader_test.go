@@ -131,3 +131,16 @@ app:
 		t.Fatalf("unexpected strays: %v", strays)
 	}
 }
+
+func TestLoadConfigs_DirectoryNotFound(t *testing.T) {
+	tempRepo := t.TempDir()
+	_, _, err := loadConfigs(tempRepo, "dev", "deploy/nope")
+	if err == nil {
+		t.Fatal("expected error for non-existent apps directory, got nil")
+	}
+	want := "deploy/nope: directory not found"
+	if err.Error() != want {
+		t.Errorf("error = %q, want %q", err.Error(), want)
+	}
+}
+
