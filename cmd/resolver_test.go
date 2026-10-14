@@ -30,12 +30,13 @@ func TestResolveTargets(t *testing.T) {
 	}
 
 	tests := map[string]struct {
-		cfg          ConfigFile
-		wantTargets  []string
-		wantErr      bool
-		errContains  string
-		wantWarn     bool
-		warnContains string
+		cfg           ConfigFile
+		wantTargets   []string
+		wantErr       bool
+		errContains   string
+		wantWarn      bool
+		warnContains  string
+		wantWarnCount int
 	}{
 		"match clusters by profile": {
 			cfg: ConfigFile{
@@ -86,6 +87,25 @@ func TestResolveTargets(t *testing.T) {
 			wantErr:     true,
 			errContains: "cluster \"non-existent-cluster\" not found in this environment",
 		},
+		"override targeting both existing and non-existent clusters preserves valid targets": {
+			cfg: ConfigFile{
+				RelPath: "apps/api/config-dev.yaml",
+				Config: Config{
+					App: App{
+						Name: "api",
+						Destination: Destination{
+							Clusters: map[string]ClusterOverride{
+								"c-prod-1":             {},
+								"non-existent-cluster": {},
+							},
+						},
+					},
+				},
+			},
+			wantTargets: []string{"c-prod-1"},
+			wantErr:     true,
+			errContains: "cluster \"non-existent-cluster\" not found in this environment",
+		},
 		"profile matching nothing produces warning": {
 			cfg: ConfigFile{
 				RelPath: "apps/api/config-dev.yaml",
@@ -98,8 +118,23 @@ func TestResolveTargets(t *testing.T) {
 					},
 				},
 			},
-			wantWarn:     true,
-			warnContains: "profile \"database\" matched nothing",
+			wantWarn:      true,
+			warnContains:  "profile \"database\" matched nothing",
+			wantWarnCount: 1,
+		},
+		"no profile and no explicit clusters produces warning": {
+			cfg: ConfigFile{
+				RelPath: "apps/api/config-dev.yaml",
+				Config: Config{
+					App: App{
+						Name: "api",
+						Destination: Destination{},
+					},
+				},
+			},
+			wantWarn:      true,
+			warnContains:  "no explicit clusters are matched for the application",
+			wantWarnCount: 1,
 		},
 		"deterministic sorting of target clusters": {
 			cfg: ConfigFile{
@@ -153,6 +188,9 @@ func TestResolveTargets(t *testing.T) {
 				}
 				if !found {
 					t.Fatalf("expected warning containing %q, got %v", tc.warnContains, warns)
+				}
+				if tc.wantWarnCount > 0 && len(warns) != tc.wantWarnCount {
+					t.Errorf("warning count = %d, want %d: %v", len(warns), tc.wantWarnCount, warns)
 				}
 			}
 

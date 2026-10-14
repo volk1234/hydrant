@@ -19,6 +19,11 @@ func TestGoldenRenderAgainstTestdata(t *testing.T) {
 		t.Fatalf("hydrant run failed: %v\nstderr: %s", err, stderr.String())
 	}
 
+	wantSummary := "1 legacy apps skipped"
+	if !bytes.Contains(stderr.Bytes(), []byte(wantSummary)) {
+		t.Errorf("stderr does not contain %q; got:\n%s", wantSummary, stderr.String())
+	}
+
 	expectedDir := filepath.Join("..", "testdata-rendered", "dev")
 	actualDir := filepath.Join(outDir, "dev")
 
@@ -83,3 +88,18 @@ func TestGoldenRenderAgainstTestdata(t *testing.T) {
 		t.Fatalf("failed walking actualDir: %v", err)
 	}
 }
+
+func TestPositionalArgumentRejected(t *testing.T) {
+	cmd := exec.Command("go", "run", ".", "-repo", "../testdata", "-env", "dev", "-out", t.TempDir(), "unexpected-arg")
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	if err == nil {
+		t.Fatal("expected error with positional argument, got success")
+	}
+	wantMsg := `argument "unexpected-arg": hydrant takes no positional arguments`
+	if !bytes.Contains(stderr.Bytes(), []byte(wantMsg)) {
+		t.Errorf("stderr = %q, want it to contain %q", stderr.String(), wantMsg)
+	}
+}
+
