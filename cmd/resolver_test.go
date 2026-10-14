@@ -196,10 +196,7 @@ func TestFilterLegacy(t *testing.T) {
 		},
 	}
 
-	filtered, skipped := filterLegacy(intents)
-	if skipped != 1 {
-		t.Errorf("skipped legacy count = %d, want 1", skipped)
-	}
+	filtered := filterLegacy(intents)
 	if len(filtered) != 2 {
 		t.Fatalf("filtered count = %d, want 2", len(filtered))
 	}

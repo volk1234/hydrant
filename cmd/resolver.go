@@ -43,7 +43,7 @@ func resolveTargets(cfg ConfigFile, clusters map[string]Cluster, profileLabel st
 		}
 		targets[name] = ovr
 	}
-	if len(targets) == 0 && len(errs) == 0 {
+	if len(targets) == 0 && len(errs) == 0 && profile == "" {
 		warns = append(warns, fmt.Sprintf("%s: no target clusters: no explicit clusters are matched for the application", cfg.RelPath))
 	}
 	for name := range targets {
@@ -70,7 +70,7 @@ func filterIntents(intents []Intent, render map[string]Cluster) []Intent {
 	return result
 }
 
-func filterLegacy(intents []Intent) ([]Intent, int) {
+func filterLegacy(intents []Intent) []Intent {
 	var result []Intent
 	skipped := make(map[string]bool)
 	for _, it := range intents {
@@ -80,5 +80,5 @@ func filterLegacy(intents []Intent) ([]Intent, int) {
 		}
 		result = append(result, it)
 	}
-	return result, len(skipped)
+	return result
 }
