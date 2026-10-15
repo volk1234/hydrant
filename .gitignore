@@ -35,3 +35,6 @@ Makefile.local
 /tmp/
 /tmp2/
 /rendered/
+
+# gitreleaser build files
+dist/
