@@ -31,3 +31,28 @@ sboms:
 
 changelog:
   use: github
+  sort: asc
+  abbrev: -1
+  format: "{{ .Message }}"
+  filters:
+    include:
+      - '^(feat|fix|refactor|doc|bump)(\(.+\))?!?:'
+  groups:
+    - title: Breaking changes
+      regexp: '^\w+(\(.+\))?!:'
+      order: 0
+    - title: Features
+      regexp: '^feat(\(.+\))?:'
+      order: 1
+    - title: Bug fixes
+      regexp: '^fix(\(.+\))?:'
+      order: 2
+    - title: Documentation
+      regexp: '^doc(\(.+\))?:'
+      order: 3
+    - title: Dependencies
+      regexp: '^bump(\(.+\))?:'
+      order: 4
+    - title: Other
+      order: 999
+
