@@ -1,6 +1,7 @@
 package main
 
 import (
+	"maps"
 	"slices"
 	"strings"
 	"testing"
@@ -89,6 +90,14 @@ func TestBuildApp(t *testing.T) {
 	if !slices.Contains(app.Metadata.Finalizers, resourcesFinalizer) {
 		t.Errorf("Finalizers missing cascade delete finalizer: %v", app.Metadata.Finalizers)
 	}
+	wantLabels := map[string]string{
+		"app.kubernetes.io/name":       "my-app-cluster-c-1",
+		"hydrant.sh/env":               "dev",
+		"app.kubernetes.io/managed-by": "hydrant",
+	}
+	if !maps.Equal(app.Metadata.Labels, wantLabels) {
+		t.Errorf("Metadata.Labels = %+v, want %+v", app.Metadata.Labels, wantLabels)
+	}
 
 	// Target overrides
 	if app.Spec.Source.TargetRevision != "2.0.0" {
@@ -171,6 +180,14 @@ func TestBuildSecretApp(t *testing.T) {
 	if app.Metadata.Annotations["hydrant.sh/source-config"] != cfg.RelPath {
 		t.Errorf("source-config annotation = %q, want %q", app.Metadata.Annotations["hydrant.sh/source-config"], cfg.RelPath)
 	}
+	wantSecretLabels := map[string]string{
+		"app.kubernetes.io/name":       expectedName,
+		"hydrant.sh/env":               "dev",
+		"app.kubernetes.io/managed-by": "hydrant",
+	}
+	if !maps.Equal(app.Metadata.Labels, wantSecretLabels) {
+		t.Errorf("Metadata.Labels = %+v, want %+v", app.Metadata.Labels, wantSecretLabels)
+	}
 }
 
 func TestBuildAppCustomLabelPrefix(t *testing.T) {
@@ -207,6 +224,30 @@ func TestBuildAppCustomLabelPrefix(t *testing.T) {
 	}
 	if _, ok := sapp.Metadata.Annotations["hydrant.sh/source-config"]; ok {
 		t.Errorf("Annotations unexpectedly contains hydrant.sh/source-config: %+v", sapp.Metadata.Annotations)
+	}
+	if got := app.Metadata.Labels["example.org/env"]; got != "dev" {
+		t.Errorf("Labels[example.org/env] = %q, want %q", got, "dev")
+	}
+	if got := sapp.Metadata.Labels["example.org/env"]; got != "dev" {
+		t.Errorf("SecretApp Labels[example.org/env] = %q, want %q", got, "dev")
+	}
+	if _, ok := app.Metadata.Labels["hydrant.sh/env"]; ok {
+		t.Errorf("Labels unexpectedly contains hydrant.sh/env: %+v", app.Metadata.Labels)
+	}
+}
+
+func TestObjectLabels(t *testing.T) {
+	got := objectLabels("my-name", "staging", "custom.io/")
+	want := map[string]string{
+		"app.kubernetes.io/name":       "my-name",
+		"custom.io/env":                "staging",
+		"app.kubernetes.io/managed-by": "hydrant",
+	}
+	if !maps.Equal(got, want) {
+		t.Errorf("objectLabels() = %+v, want %+v", got, want)
+	}
+	if _, ok := got["parent-app"]; ok {
+		t.Errorf("objectLabels() unexpectedly contains parent-app")
 	}
 }
 

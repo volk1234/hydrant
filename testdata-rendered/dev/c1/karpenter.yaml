@@ -7,9 +7,9 @@ metadata:
     argocd.argoproj.io/sync-wave: "1"
     hydrant.sh/source-config: cluster-init/apps/karpenter/config-dev.yaml
   labels:
+    app.kubernetes.io/managed-by: hydrant
     app.kubernetes.io/name: karpenter-c1
-    env: dev
-    parent-app: cluster-init-dev
+    hydrant.sh/env: dev
 spec:
   project: default
   source:
