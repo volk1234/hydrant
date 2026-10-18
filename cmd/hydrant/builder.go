@@ -16,10 +16,9 @@ const appKind = "Application"
 const skipSchemaValidation = true
 const createNamespace = true
 const kubeAppLabel = "app.kubernetes.io/name"
-const chartParentPrefix = "cluster-init-"
+const kubeManagedByLabel = "app.kubernetes.io/managed-by"
 const secretAppPathSuffix = "external_secrets"
 const secretAppNamePrefix = "external-secret-"
-const secretAppNamePluralPrefix = "external-secrets-"
 const maxLabelValueLen = 63
 
 type Application struct {
@@ -134,6 +133,14 @@ func checkLabelValues(app Application, relPath string) []error {
 	return errs
 }
 
+func objectLabels(name, env, prefix string) map[string]string {
+	return map[string]string{
+		kubeAppLabel:       name,
+		prefix + "env":     env,
+		kubeManagedByLabel: "hydrant",
+	}
+}
+
 func buildApp(cfg ConfigFile, t Target, env, project string, values ValuesObject, s Settings, ns string) (Application, error) {
 	name := cfg.Config.App.Name + "-" + t.Cluster.Name
 
@@ -147,11 +154,7 @@ func buildApp(cfg ConfigFile, t Target, env, project string, values ValuesObject
 				"argocd.argoproj.io/sync-wave": strconv.Itoa(cfg.Config.ArgoCD.SyncWave),
 				s.SourceConfigAnnotation():     cfg.RelPath,
 			},
-			Labels: map[string]string{
-				kubeAppLabel: name,
-				"env":        env,
-				"parent-app": chartParentPrefix + env,
-			},
+			Labels: objectLabels(name, env, s.LabelPrefix),
 		},
 		Spec: Spec{
 			Project: project,
@@ -209,11 +212,7 @@ func buildSecretApp(cfg ConfigFile, t Target, env, project string, s Settings, n
 			Annotations: map[string]string{
 				s.SourceConfigAnnotation(): cfg.RelPath,
 			},
-			Labels: map[string]string{
-				kubeAppLabel: name,
-				"env":        env,
-				"parent-app": secretAppNamePluralPrefix + env,
-			},
+			Labels: objectLabels(name, env, s.LabelPrefix),
 		},
 		Spec: Spec{
 			Project: project,
