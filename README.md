@@ -1,5 +1,7 @@
 # hydrant
 
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/volk1234/hydrant/badge)](https://scorecard.dev/viewer/?uri=github.com/volk1234/hydrant)
+
 Hydrant is an offline generator that reimagines the ArgoCD ApplicationSet by shifting application targeting and
 topology resolution from runtime cluster evaluation into a deterministic, static build step. It is not a replacement
 for Argo CD itself, nor is it a traditional "source hydrator" (it does not bake Helm charts into raw Kubernetes
