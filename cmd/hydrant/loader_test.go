@@ -96,7 +96,7 @@ app:
   destination:
     namespace: ns1
 `
-	svc2Dev := strings.Replace(svc1Dev, "svc1", "svc2", -1)
+	svc2Dev := strings.ReplaceAll(svc1Dev, "svc1", "svc2")
 	svc2Stray := svc2Dev // config-unknown.yaml
 
 	if err := os.WriteFile(filepath.Join(app1Dir, "config-dev.yaml"), []byte(svc1Dev), 0o644); err != nil {
