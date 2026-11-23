@@ -80,7 +80,7 @@ func writeProduct(out, env string, product map[string][]byte) error {
 	if err != nil {
 		return fmt.Errorf("create temporary directory: %w", err)
 	}
-	defer os.RemoveAll(dir)
+	defer func() { _ = os.RemoveAll(dir) }()
 
 	for path, doc := range product {
 		full := filepath.Join(dir, path)
