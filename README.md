@@ -65,3 +65,61 @@ go test -run TestGolden -update          # regenerate goldens after intended cha
 make validate                            # kubeconform against the vendored schema
 make update-schema ARGOCD_VERSION=vX.Y.Z # refresh schema on hub Argo CD upgrades
 ```
+
+## Installation
+
+### From source
+
+```sh
+go install github.com/volk1234/hydrant/cmd/hydrant@v0.2.0
+```
+
+### From release archive (with verification)
+
+Download the archive and checksums, then verify the signature, checksum, and build provenance before running the binary:
+
+```sh
+gh release download v0.2.0 -R volk1234/hydrant \
+  -p 'hydrant_0.2.0_linux_amd64.tar.gz' \
+  -p 'checksums.txt*'
+
+# Verify checksums signature (cosign keyless via Sigstore)
+cosign verify-blob \
+  --certificate-identity-regexp '^https://github\.com/volk1234/hydrant/\.github/workflows/release\.yaml@refs/tags/v' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --bundle checksums.txt.sigstore.json checksums.txt
+
+# Verify archive checksum
+sha256sum --check --ignore-missing checksums.txt
+
+# Verify SLSA build provenance
+gh attestation verify hydrant_0.2.0_linux_amd64.tar.gz -R volk1234/hydrant
+
+tar xzf hydrant_0.2.0_linux_amd64.tar.gz hydrant
+./hydrant -version
+```
+
+## Compatibility
+
+`hydrant` follows [Semantic Versioning](https://semver.org/). The following are considered breaking changes:
+
+| Change | Example | Breaking |
+|---|---|---|
+| `hydrant.yaml` format | Key renamed or made required | Yes |
+| Application config format | Key renamed or default value changed | Yes |
+| Output layout | Different file path or object name | Yes |
+| Output content for identical input | Changed field in rendered output | Yes |
+| New optional input key | New key that preserves prior behavior when omitted | No |
+| CLI flags | Flag removed or semantics changed | Yes |
+
+Before `v1.0.0`, breaking changes increment the minor version (`0.x.0`). From `v1.0.0` onward, breaking changes increment the major version (`x.0.0`). Every breaking change is documented in the release notes.
+
+## No Network Access
+
+`hydrant` makes **zero network calls** — it never connects to the internet, Kubernetes API, Argo CD API, or secret stores.
+
+This is enforced in CI on every pull request by `make nonet`, which fails if `net`, `net/http`, or `crypto/tls` appears anywhere in the binary's dependency graph. Air-gapped and restricted-network environments can run `hydrant` without network policy exceptions.
+
+## Hydrant vs. Argo CD Source Hydrator
+
+`hydrant` replaces `ApplicationSet` generation: given cluster configs/labels and app configs, it produces `Application` manifests. **Argo CD Source Hydrator** renders the sources of a single `Application` into raw manifests and commits them to Git. The two tools solve different problems and can be used together.

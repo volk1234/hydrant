@@ -1,0 +1,35 @@
+name: Bug report
+description: Report a bug in hydrant
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `hydrant -version`
+      placeholder: "v0.2.0"
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command
+      description: Exact command and flags you ran
+      placeholder: "hydrant -repo . -env dev -out /tmp/rendered"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What you expected to happen
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happened (include error output if any)
+    validations:
+      required: true
